@@ -1,0 +1,208 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum UserRole {
+  ADMIN
+}
+
+enum PaymentMode {
+  CASH
+  UPI
+  CARD
+  CREDIT
+}
+enum PaymentStatus {
+  PAID
+  PARTIAL
+  UNPAID
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FLAT
+}
+
+enum InventoryActionType {
+  SALE
+  RESTOCK
+  RETURN
+  MANUAL_ADJUSTMENT
+}
+
+model User {
+  id         String   @id @default(cuid())
+  username   String   @unique
+  password   String
+  fullName   String
+  role       UserRole
+  isActive   Boolean  @default(true)
+  sales      Sale[]
+  inventoryLogs InventoryLog[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Category {
+  id         String   @id @default(cuid())
+  name       String   @unique
+  description String?
+  products   Product[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Product {
+  id              String   @id @default(cuid())
+  name            String
+  sku             String   @unique
+  barcode         String?
+  categoryId      String
+  category        Category @relation(fields: [categoryId], references: [id])
+  unitType        String
+  costPrice       Decimal
+  sellingPrice    Decimal
+  currentStock    Int      @default(0)
+  minStockAlert   Int      @default(5)
+  isActive        Boolean  @default(true)
+  notes           String?
+  saleItems       SaleItem[]
+  inventoryLogs   InventoryLog[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+   @@index([name])
+  @@index([barcode])
+  @@index([categoryId])
+}
+
+model Customer {
+  id              String   @id @default(cuid())
+  name            String
+  mobile          String
+  address         String?
+  gstNumber       String?
+  pendingAmount   Decimal  @default(0)
+  notes           String?
+  sales           Sale[]
+  payments        Payment[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([mobile])
+  @@index([name])
+}
+
+model Sale {
+  id               String   @id @default(cuid())
+  invoiceNumber    String   @unique
+  customerId       String?
+  customer         Customer? @relation(fields: [customerId], references: [id])
+  userId           String
+  user             User     @relation(fields: [userId], references: [id])
+  subtotal         Decimal
+  discountType     DiscountType
+  discountValue    Decimal
+  discountAmount   Decimal
+  labourCost       Decimal @default(0)
+  taxAmount        Decimal @default(0)
+  grandTotal       Decimal
+  totalProfit      Decimal
+  paidAmount       Decimal
+  dueAmount        Decimal
+  paymentMode      PaymentMode
+  paymentStatus    PaymentStatus
+  notes            String?
+  isDeleted        Boolean @default(false)
+   saleItems        SaleItem[]
+  payments         Payment[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([createdAt])
+  @@index([paymentStatus])
+}
+
+model SaleItem {
+  id                   String   @id @default(cuid())
+  saleId               String
+  sale                 Sale     @relation(fields: [saleId], references: [id])
+  productId            String
+  product              Product  @relation(fields: [productId], references: [id])
+  productName          String
+  sku                  String
+  quantity             Int
+  unitPrice            Decimal
+  costPriceAtSale      Decimal
+  sellingPriceAtSale   Decimal
+  totalPrice           Decimal
+  totalCost            Decimal
+  profit               Decimal
+  createdAt            DateTime @default(now())
+
+    @@index([saleId])
+  @@index([productId])
+}
+
+model InventoryLog {
+  id                String   @id @default(cuid())
+  productId         String
+  product           Product  @relation(fields: [productId], references: [id])
+  userId            String
+  user              User     @relation(fields: [userId], references: [id])
+  actionType        InventoryActionType
+  previousStock     Int
+  changedQuantity   Int
+  newStock          Int
+  referenceType     String
+  referenceId       String?
+  reason            String?
+  createdAt         DateTime @default(now())
+
+  @@index([productId])
+  @@index([createdAt])
+  @@index([actionType])
+}
+
+model Payment {
+  id             String   @id @default(cuid())
+  saleId         String
+  sale           Sale     @relation(fields: [saleId], references: [id])
+  customerId     String
+  customer       Customer @relation(fields: [customerId], references: [id])
+  amount         Decimal
+  paymentMode    PaymentMode
+  notes          String?
+  createdAt      DateTime @default(now())
+}
+
+
+model Setting {
+  id                    String   @id @default(cuid())
+  storeName             String
+  storeAddress          String
+  storePhone            String
+  storeEmail            String?
+  gstNumber             String?
+  invoicePrefix         String   @default("INV")
+  taxPercentage         Decimal  @default(0)
+  currencySymbol        String   @default("₹")
+  thermalPaperWidth     String   @default("80mm")
+  allowNegativeStock    Boolean  @default(false)
+  logoPath              String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model Backup {
+  id          String   @id @default(cuid())
+  fileName    String
+  filePath    String
+  fileSize    String
+  createdAt   DateTime @default(now())
+}
