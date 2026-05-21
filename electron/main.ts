@@ -1,5 +1,7 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, ipcMain } from 'electron'
 import path from 'path'
+import { setupPrinterIpc } from './ipc/printer.ipc'
+import { setupBackupIpc } from './ipc/backup.ipc'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -29,7 +31,19 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  setupPrinterIpc()
+  setupBackupIpc()
+
+  // General App Path helper
+  ipcMain.handle('get-app-path', () => app.getAppPath())
+
   createWindow()
+
+  // Simple auto-backup when closing the app
+  app.on('before-quit', async () => {
+    // A real app might call the backup manager silently here
+    console.log('App closing... auto-backup could fire here.')
+  })
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
