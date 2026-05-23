@@ -32,11 +32,6 @@ export default function BillingPage() {
   const debouncedCustomerSearch = useDebounce(customerSearch, 300)
   const [customerResults, setCustomerResults] = useState<any[]>([])
 
-  // Load Component Mount Reset
-  useEffect(() => {
-    clearCart()
-  }, [])
-
   // Customer Search Logic
   useEffect(() => {
     if (!debouncedCustomerSearch) {

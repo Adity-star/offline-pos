@@ -1,6 +1,7 @@
 'use client'
 
 import { Trash2, Plus, Minus, ShoppingCart } from 'lucide-react'
+import { useState } from 'react'
 import { useBillingStore } from '@/store/billing.store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,6 +17,8 @@ import {
 
 export function BillItemsTable() {
   const { items, removeItem, updateQuantity, updateSaleRate } = useBillingStore()
+  const [quantityInputs, setQuantityInputs] = useState<Record<string, string>>({})
+  const [priceInputs, setPriceInputs] = useState<Record<string, string>>({})
 
   if (items.length === 0) {
     return (
@@ -56,8 +59,38 @@ export function BillItemsTable() {
                   <Input
                     type="number"
                     className="w-24 text-right h-8"
-                    value={item.saleRate}
-                    onChange={(e) => updateSaleRate(item.productId, Number(e.target.value))}
+                    value={priceInputs[item.productId] ?? item.saleRate}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      setPriceInputs(prev => ({ ...prev, [item.productId]: value }))
+                    }}
+                    onBlur={() => {
+                      const inputValue = priceInputs[item.productId]
+                      if (inputValue !== undefined) {
+                        const newPrice = parseFloat(inputValue) || 0
+                        updateSaleRate(item.productId, Math.max(0, newPrice))
+                        setPriceInputs(prev => {
+                          const updated = { ...prev }
+                          delete updated[item.productId]
+                          return updated
+                        })
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const inputValue = priceInputs[item.productId] ?? String(item.saleRate)
+                        const newPrice = parseFloat(inputValue) || 0
+                        updateSaleRate(item.productId, Math.max(0, newPrice))
+                        setPriceInputs(prev => {
+                          const updated = { ...prev }
+                          delete updated[item.productId]
+                          return updated
+                        })
+                        ;(e.target as HTMLInputElement).blur()
+                      }
+                      e.stopPropagation()
+                    }}
+                    onClick={(e) => (e.target as HTMLInputElement).select()}
                     min={0}
                     step={0.01}
                   />
@@ -76,8 +109,36 @@ export function BillItemsTable() {
                   <Input
                     type="number"
                     className="w-16 text-center h-8 font-medium"
-                    value={item.quantity}
-                    onChange={(e) => updateQuantity(item.productId, parseInt(e.target.value) || 0)}
+                    value={quantityInputs[item.productId] ?? item.quantity}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      setQuantityInputs(prev => ({ ...prev, [item.productId]: value }))
+                    }}
+                    onBlur={() => {
+                      const inputValue = quantityInputs[item.productId]
+                      const newQuantity = parseInt(inputValue) || 1
+                      updateQuantity(item.productId, Math.max(1, newQuantity))
+                      setQuantityInputs(prev => {
+                        const updated = { ...prev }
+                        delete updated[item.productId]
+                        return updated
+                      })
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const inputValue = quantityInputs[item.productId] ?? String(item.quantity)
+                        const newQuantity = parseInt(inputValue) || 1
+                        updateQuantity(item.productId, Math.max(1, newQuantity))
+                        setQuantityInputs(prev => {
+                          const updated = { ...prev }
+                          delete updated[item.productId]
+                          return updated
+                        })
+                        ;(e.target as HTMLInputElement).blur()
+                      }
+                      e.stopPropagation()
+                    }}
+                    onClick={(e) => (e.target as HTMLInputElement).select()}
                     min={1}
                     max={item.maxStock}
                   />

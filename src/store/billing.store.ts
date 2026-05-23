@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 
 export interface CartItem {
   productId: string
@@ -21,7 +22,7 @@ interface BillingState {
   discountType: 'percentage' | 'amount'
   discountValue: number
   labourCost: number
-  pendingAmount: number // Useful if old customer is selected
+  pendingAmount: number
   
   // Actions
   addItem: (item: CartItem) => void
@@ -40,98 +41,132 @@ interface BillingState {
   getTotalProfit: () => number
 }
 
-export const useBillingStore = create<BillingState>((set, get) => ({
-  items: [],
-  customer: { name: '', mobile: '' },
-  discountType: 'percentage',
-  discountValue: 0,
-  labourCost: 0,
-  pendingAmount: 0,
+export const useBillingStore = create<BillingState>()(
+  persist(
+    (set, get) => ({
+      items: [],
+      customer: { name: '', mobile: '' },
+      discountType: 'percentage',
+      discountValue: 0,
+      labourCost: 0,
+      pendingAmount: 0,
 
-  addItem: (newItem) => set((state) => {
-    const existing = state.items.find(i => i.productId === newItem.productId)
-    if (existing) {
-      if (existing.quantity >= newItem.maxStock) return state; // Don't exceed stock
-      return {
-        items: state.items.map(i => 
-          i.productId === newItem.productId 
-            ? { ...i, quantity: i.quantity + 1 }
-            : i
-        )
-      }
-    }
-    return { items: [...state.items, { ...newItem, quantity: 1 }] }
-  }),
-
-  removeItem: (productId) => set((state) => ({
-    items: state.items.filter(i => i.productId !== productId)
-  })),
-
-  updateQuantity: (productId, quantity) => set((state) => {
-    if (quantity <= 0) return { items: state.items.filter(i => i.productId !== productId) }
-    
-    return {
-      items: state.items.map(i => {
-        if (i.productId === productId) {
-          // Clamp quantity to maxStock to prevent negative inventory
-          const safeQuantity = Math.min(quantity, i.maxStock)
-          return { ...i, quantity: safeQuantity }
+      addItem: (newItem) => set((state) => {
+        const existing = state.items.find(i => i.productId === newItem.productId)
+        if (existing) {
+          if (existing.quantity >= newItem.maxStock) return state;
+          return {
+            items: state.items.map(i => 
+              i.productId === newItem.productId 
+                ? { ...i, quantity: i.quantity + 1 }
+                : i
+            )
+          }
         }
-        return i
-      })
+        const itemToAdd = {
+          ...newItem,
+          quantity: 1,
+          saleRate: Number(newItem.saleRate),
+          buyRate: Number(newItem.buyRate),
+        }
+        return { items: [...state.items, itemToAdd] }
+      }),
+
+      removeItem: (productId) => set((state) => ({
+        items: state.items.filter(i => i.productId !== productId)
+      })),
+
+      updateQuantity: (productId, quantity) => set((state) => {
+        if (quantity <= 0) return { items: state.items.filter(i => i.productId !== productId) }
+        
+        return {
+          items: state.items.map(i => {
+            if (i.productId === productId) {
+              const safeQuantity = Math.min(quantity, i.maxStock)
+              return { ...i, quantity: safeQuantity }
+            }
+            return i
+          })
+        }
+      }),
+
+      updateSaleRate: (productId, saleRate) => set((state) => ({
+        items: state.items.map(i => 
+          i.productId === productId ? { ...i, saleRate: Number(saleRate) } : i
+        )
+      })),
+
+      setDiscount: (type, value) => set({ discountType: type, discountValue: value }),
+      
+      setLabourCost: (cost) => set({ labourCost: cost }),
+      
+      setCustomer: (customer, pendingBalance = 0) => set({ customer, pendingAmount: pendingBalance }),
+
+      clearCart: () => set({
+        items: [],
+        customer: { name: '', mobile: '' },
+        discountType: 'percentage',
+        discountValue: 0,
+        labourCost: 0,
+        pendingAmount: 0
+      }),
+
+      getSubtotal: () => {
+        const { items } = get()
+        return items.reduce((sum, item) => {
+          const saleRate = Number(item.saleRate) || 0
+          const quantity = Number(item.quantity) || 0
+          return sum + (saleRate * quantity)
+        }, 0)
+      },
+
+      getDiscountAmount: () => {
+        const { discountType, discountValue, getSubtotal } = get()
+        const subtotal = getSubtotal()
+        
+        if (discountType === 'percentage') {
+          return (subtotal * Number(discountValue)) / 100
+        }
+        return Number(discountValue) || 0
+      },
+
+      getGrandTotal: () => {
+        const { getSubtotal, getDiscountAmount, labourCost } = get()
+        return getSubtotal() - getDiscountAmount() + (Number(labourCost) || 0)
+      },
+
+      getTotalProfit: () => {
+        const { items, getDiscountAmount } = get()
+        const baseProfit = items.reduce((sum, item) => {
+          const saleRate = Number(item.saleRate) || 0
+          const buyRate = Number(item.buyRate) || 0
+          const quantity = Number(item.quantity) || 0
+          return sum + ((saleRate - buyRate) * quantity)
+        }, 0)
+        return baseProfit - getDiscountAmount()
+      }
+    }),
+    {
+      name: 'billing-cart-storage',
+      partialize: (state) => ({
+        items: state.items,
+        customer: state.customer,
+        discountType: state.discountType,
+        discountValue: state.discountValue,
+        labourCost: state.labourCost,
+        pendingAmount: state.pendingAmount,
+      }),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          console.log('Billing store rehydrated from localStorage:', {
+            itemsCount: state.items.length,
+            items: state.items,
+            subtotal: state.getSubtotal()
+          })
+        } else {
+          console.error('Failed to rehydrate billing store')
+        }
+      },
     }
-  }),
-
-  updateSaleRate: (productId, saleRate) => set((state) => ({
-    items: state.items.map(i => 
-      i.productId === productId ? { ...i, saleRate } : i
-    )
-  })),
-
-  setDiscount: (type, value) => set({ discountType: type, discountValue: value }),
-  
-  setLabourCost: (cost) => set({ labourCost: cost }),
-  
-  setCustomer: (customer, pendingBalance = 0) => set({ customer, pendingAmount: pendingBalance }),
-
-  clearCart: () => set({
-    items: [],
-    customer: { name: '', mobile: '' },
-    discountType: 'percentage',
-    discountValue: 0,
-    labourCost: 0,
-    pendingAmount: 0
-  }),
-
-  getSubtotal: () => {
-    const { items } = get()
-    return items.reduce((sum, item) => {
-      const saleRate = Number(item.saleRate) || 0
-      const quantity = Number(item.quantity) || 0
-      return sum + (saleRate * quantity)
-    }, 0)
-  },
-
-  getDiscountAmount: () => {
-    const { discountType, discountValue, getSubtotal } = get()
-    const subtotal = getSubtotal()
-    
-    if (discountType === 'percentage') {
-      return (subtotal * discountValue) / 100
-    }
-    return discountValue
-  },
-
-  getGrandTotal: () => {
-    const { getSubtotal, getDiscountAmount, labourCost } = get()
-    return getSubtotal() - getDiscountAmount() + labourCost
-  },
-
-  getTotalProfit: () => {
-    const { items, getDiscountAmount } = get()
-    // Base profit = (saleRate - buyRate) * quantity
-    const baseProfit = items.reduce((sum, item) => sum + ((item.saleRate - item.buyRate) * item.quantity), 0)
-    // Discount reduces profit
-    return baseProfit - getDiscountAmount()
-  }
-}))
+  )
+)
