@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { FileText, Search, Filter } from 'lucide-react'
+import { FileText, Printer, Search, Filter } from 'lucide-react'
+import { toast } from 'sonner'
+import { printSaleById } from '@/lib/print-invoice'
 import { format } from 'date-fns'
 
 import { PageHeader } from '@/components/shared/page-header'
@@ -38,6 +40,20 @@ export default function SalesPage() {
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [page, setPage] = useState(1)
   const [limit] = useState(15)
+  const [printingId, setPrintingId] = useState<string | null>(null)
+
+  const handlePrint = async (saleId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      setPrintingId(saleId)
+      await printSaleById(saleId)
+      toast.success('Bill sent to printer')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Print failed')
+    } finally {
+      setPrintingId(null)
+    }
+  }
 
   const fetchSales = async () => {
     try {
@@ -150,10 +166,30 @@ export default function SalesPage() {
                   </TableCell>
                   <TableCell className="text-right font-medium">₹{Number(sale.grandTotal).toFixed(2)}</TableCell>
                   <TableCell className="text-right pr-6">
-                    <Button variant="ghost" size="sm" className="h-8">
-                      <FileText className="w-4 h-4 mr-2" />
-                      View
-                    </Button>
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8"
+                        disabled={printingId === sale.id}
+                        onClick={(e) => handlePrint(sale.id, e)}
+                      >
+                        <Printer className="w-4 h-4 mr-1" />
+                        {printingId === sale.id ? '...' : 'Print'}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          router.push(`/sales/${sale.id}`)
+                        }}
+                      >
+                        <FileText className="w-4 h-4 mr-1" />
+                        View
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

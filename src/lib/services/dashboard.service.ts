@@ -53,25 +53,25 @@ export const dashboardService = {
     ])
 
     return {
-      todaysRevenue: Number(todaysSales._sum.grandTotal || 0),
-      todaysProfit: Number(todaysSales._sum.totalProfit || 0),
+      todayRevenue: Number(todaysSales._sum.grandTotal ?? 0),
+      todaysProfit: Number(todaysSales._sum.totalProfit ?? 0),
       todaysTransactions: todaysSales._count.id,
-      todaysLabourCost: Number(todaysSales._sum.labourCost || 0),
+      todaysLabourCost: Number(todaysSales._sum.labourCost ?? 0),
 
-      monthlyRevenue: Number(monthlySales._sum.grandTotal || 0),
-      monthlyProfit: Number(monthlySales._sum.totalProfit || 0),
+      monthlyRevenue: Number(monthlySales._sum.grandTotal ?? 0),
+      monthlyProfit: Number(monthlySales._sum.totalProfit ?? 0),
       monthlyTransactions: monthlySales._count.id,
-      monthlyLabourCost: Number(monthlySales._sum.labourCost || 0),
+      monthlyLabourCost: Number(monthlySales._sum.labourCost ?? 0),
 
-      totalRevenue: Number(allTimeSales._sum.grandTotal || 0),
-      totalProfit: Number(allTimeSales._sum.totalProfit || 0),
+      totalRevenue: Number(allTimeSales._sum.grandTotal ?? 0),
+      totalProfit: Number(allTimeSales._sum.totalProfit ?? 0),
       totalTransactions: allTimeSales._count.id,
-      totalLabourCost: Number(allTimeSales._sum.labourCost || 0),
-      avgOrderValue: Number(allTimeSales._avg.grandTotal || 0),
+      totalLabourCost: Number(allTimeSales._sum.labourCost ?? 0),
+      avgOrderValue: Number(allTimeSales._avg.grandTotal ?? 0),
 
       totalCustomers,
-      totalProductsSold: totalProducts._sum.quantity || 0,
-      pendingAmount: Number(pendingAmount._sum.pendingAmount || 0),
+      totalProductsSold: totalProducts._sum.quantity ?? 0,
+      pendingRecovery: Number(pendingAmount._sum.pendingAmount ?? 0),
     }
   },
 
@@ -93,7 +93,12 @@ export const dashboardService = {
       ORDER BY date ASC
     `
 
-    return sales
+    return sales.map((row) => ({
+      date: row.date,
+      revenue: Number(row.revenue ?? 0),
+      profit: Number(row.profit ?? 0),
+      count: Number(row.count ?? 0),
+    }))
   },
 
   async getTopProducts(limit = 10) {
@@ -110,7 +115,13 @@ export const dashboardService = {
       LIMIT ${limit}
     `
 
-    return products
+    return products.map((row, index) => ({
+      id: String(index + 1),
+      name: row.productName,
+      sku: '—',
+      _count: { sales: Number(row.totalQuantity ?? 0) },
+      totalRevenue: Number(row.totalRevenue ?? 0),
+    }))
   },
 
   async getMonthlySales(months = 12) {
@@ -131,6 +142,11 @@ export const dashboardService = {
       ORDER BY month ASC
     `
 
-    return sales
+    return sales.map((row) => ({
+      month: row.month,
+      revenue: Number(row.revenue ?? 0),
+      profit: Number(row.profit ?? 0),
+      count: Number(row.count ?? 0),
+    }))
   },
 }

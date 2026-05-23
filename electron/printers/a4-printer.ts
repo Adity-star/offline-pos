@@ -20,7 +20,7 @@ export class A4Printer {
           silent: true,
           printBackground: true,
           pageSize: 'A4',
-          margins: { marginType: 'printableArea' },
+          margins: { marginType: 'none' },
         }, (success, failureReason) => {
           if (!success) {
             console.error('A4 Print failed:', failureReason)

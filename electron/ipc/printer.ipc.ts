@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
-import { ThermalPrinter } from '../printers/thermal-printer'
-import { A4Printer } from '../printers/a4-printer'
+import { ThermalPrinter } from '../printers/thermal-printer.ts'
+import { A4Printer } from '../printers/a4-printer.ts'
 
 export function setupPrinterIpc() {
   const thermalPrinter = new ThermalPrinter()

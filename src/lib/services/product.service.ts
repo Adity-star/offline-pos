@@ -44,8 +44,15 @@ export const productService = {
       prisma.product.count({ where }),
     ])
 
+    // Convert Decimal types to numbers for proper JSON serialization
+    const serializedProducts = products.map(product => ({
+      ...product,
+      costPrice: Number(product.costPrice),
+      sellingPrice: Number(product.sellingPrice),
+    }))
+
     return {
-      products,
+      products: serializedProducts,
       total,
       page,
       limit,
@@ -54,10 +61,19 @@ export const productService = {
   },
 
   async getById(id: string) {
-    return prisma.product.findUnique({
+    const product = await prisma.product.findUnique({
       where: { id },
       include: { category: true },
     })
+
+    if (!product) return null
+
+    // Convert Decimal types to numbers for proper JSON serialization
+    return {
+      ...product,
+      costPrice: Number(product.costPrice),
+      sellingPrice: Number(product.sellingPrice),
+    }
   },
 
   async create(data: {
@@ -143,7 +159,7 @@ export const productService = {
   },
 
   async search(query: string, limit = 10) {
-    return prisma.product.findMany({
+    const products = await prisma.product.findMany({
       where: {
         isActive: true,
         OR: [
@@ -155,6 +171,13 @@ export const productService = {
       include: { category: true },
       take: limit,
     })
+
+    // Convert Decimal types to numbers for proper JSON serialization
+    return products.map(product => ({
+      ...product,
+      costPrice: Number(product.costPrice),
+      sellingPrice: Number(product.sellingPrice),
+    }))
   },
 
   async getLowStock() {

@@ -66,18 +66,27 @@ export function ProductSearch() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const handleSelect = (product: any) => {
+   const handleSelect = (product: any) => {
     if (product.currentStock <= 0) {
       toast.error('Out of stock!')
       return
     }
     
+    console.log('Product from API:', product)
+    console.log('sellingPrice type:', typeof product.sellingPrice, 'value:', product.sellingPrice)
+    console.log('costPrice type:', typeof product.costPrice, 'value:', product.costPrice)
+    
+    const saleRate = Number(product.sellingPrice)
+    const buyRate = Number(product.costPrice)
+    
+    console.log('Converted saleRate:', saleRate, 'buyRate:', buyRate)
+    
     addItem({
       productId: product.id,
       name: product.name,
-      quantity: 1, // Store handles max stock check and incrementing
-      saleRate: product.sellingPrice,
-      buyRate: product.costPrice,
+      quantity: 1,
+      saleRate: saleRate,
+      buyRate: buyRate,
       maxStock: product.currentStock,
     })
     

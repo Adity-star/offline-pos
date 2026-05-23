@@ -31,7 +31,7 @@ export function Sidebar() {
     <aside className="flex h-screen w-[68px] flex-col items-center border-r border-sidebar-border bg-sidebar py-4">
       {/* Store Logo / Initials */}
       <div className="mb-6 flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
-        POS
+        SPM
       </div>
 
       {/* Navigation */}

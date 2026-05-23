@@ -171,6 +171,18 @@ export default function SettingsPage() {
                     <label className="text-sm font-medium">Default Tax %</label>
                     <Input {...form.register('taxPercentage')} type="number" step="0.1" />
                   </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium flex items-center gap-2">
+                      <Printer className="h-4 w-4" /> Print Format
+                    </label>
+                    <select
+                      {...form.register('printTemplate')}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    >
+                      <option value="A4">A4 Invoice (Professional)</option>
+                      <option value="THERMAL_80MM">Thermal Receipt (80mm)</option>
+                    </select>
+                  </div>
                   <div className="space-y-2 flex flex-col justify-end pb-2">
                     <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
                       <input 

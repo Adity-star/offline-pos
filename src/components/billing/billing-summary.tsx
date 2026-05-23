@@ -9,27 +9,25 @@ import { Separator } from '@/components/ui/separator'
 
 interface BillingSummaryProps {
   onCompleteSale: () => void
+  onPrint?: () => void
   isSubmitting: boolean
+  isPrinting?: boolean
 }
 
-export function BillingSummary({ onCompleteSale, isSubmitting }: BillingSummaryProps) {
-  const { 
-    items, 
-    discountType, 
-    discountValue, 
-    setDiscount, 
-    labourCost, 
-    setLabourCost,
-    getSubtotal,
-    getDiscountAmount,
-    getGrandTotal,
-    customer,
-    pendingAmount
-  } = useBillingStore()
+export function BillingSummary({ onCompleteSale, onPrint, isSubmitting, isPrinting }: BillingSummaryProps) {
+  const items = useBillingStore((state) => state.items)
+  const discountType = useBillingStore((state) => state.discountType)
+  const discountValue = useBillingStore((state) => state.discountValue)
+  const labourCost = useBillingStore((state) => state.labourCost)
+  const customer = useBillingStore((state) => state.customer)
+  const pendingAmount = useBillingStore((state) => state.pendingAmount)
+  const setDiscount = useBillingStore((state) => state.setDiscount)
+  const setLabourCost = useBillingStore((state) => state.setLabourCost)
+  
+  const subtotal = items.reduce((sum, item) => sum + (item.saleRate * item.quantity), 0)
+  const discountAmount = discountType === 'percentage' ? (subtotal * discountValue) / 100 : discountValue
+  const grandTotal = subtotal - discountAmount + labourCost
 
-  const subtotal = getSubtotal()
-  const discountAmount = getDiscountAmount()
-  const grandTotal = getGrandTotal()
 
   return (
     <Card className="flex flex-col h-full bg-slate-50/50 dark:bg-slate-900/50 border-l">
@@ -147,10 +145,10 @@ export function BillingSummary({ onCompleteSale, isSubmitting }: BillingSummaryP
           <Button 
             className="w-full h-12" 
             variant="outline"
-            disabled={items.length === 0 || isSubmitting}
-            onClick={() => {/* Only print if invoice saved */}}
+            disabled={items.length === 0 || isSubmitting || isPrinting}
+            onClick={onPrint}
           >
-            <Printer className="mr-2 h-5 w-5" /> Print Bill (F2)
+            <Printer className="mr-2 h-5 w-5" /> {isPrinting ? 'Printing...' : 'Print Bill (F2)'}
           </Button>
         </div>
 

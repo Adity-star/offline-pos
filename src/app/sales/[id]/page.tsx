@@ -12,6 +12,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { toast } from 'sonner'
+import { printSaleById } from '@/lib/print-invoice'
 import {
   Table,
   TableBody,
@@ -27,6 +28,7 @@ export default function SaleDetailPage() {
   const [sale, setSale] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [isPrinting, setIsPrinting] = useState(false)
 
   useEffect(() => {
     if (!params.id) return
@@ -39,6 +41,19 @@ export default function SaleDetailPage() {
       .catch(e => toast.error(e.message))
       .finally(() => setLoading(false))
   }, [params.id])
+
+  const handlePrint = async () => {
+    if (!sale?.id) return
+    try {
+      setIsPrinting(true)
+      await printSaleById(sale.id)
+      toast.success('Bill sent to printer')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Print failed')
+    } finally {
+      setIsPrinting(false)
+    }
+  }
 
   const handleDelete = async () => {
     try {
@@ -55,6 +70,10 @@ export default function SaleDetailPage() {
   if (loading) return <PageLoading />
   if (!sale) return <div className="p-6">Invoice not found</div>
 
+  const lineItems = sale.saleItems ?? sale.items ?? []
+  const customerName = sale.customer?.name ?? sale.customerName ?? 'Walk-in Customer'
+  const customerMobile = sale.customer?.mobile ?? sale.customerMobile ?? null
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex items-center justify-between p-6 pb-2 shrink-0">
@@ -68,8 +87,8 @@ export default function SaleDetailPage() {
           />
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={() => {/* TODO: Print */}}>
-            <Printer className="w-4 h-4 mr-2" /> Print
+          <Button variant="outline" onClick={handlePrint} disabled={isPrinting}>
+            <Printer className="w-4 h-4 mr-2" /> {isPrinting ? 'Printing...' : 'Print'}
           </Button>
           <Button variant="destructive" onClick={() => setIsDeleteOpen(true)}>
             <Trash2 className="w-4 h-4 mr-2" /> Delete Invoice
@@ -91,20 +110,27 @@ export default function SaleDetailPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sale.items.map((item: any, idx: number) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
-                    <TableCell>
-                      <div className="font-medium">{item.product.name}</div>
-                      <div className="text-xs text-muted-foreground">SKU: {item.product.sku}</div>
-                    </TableCell>
-                    <TableCell className="text-right">₹{Number(item.saleRate).toFixed(2)}</TableCell>
-                    <TableCell className="text-center">{item.quantity}</TableCell>
-                    <TableCell className="text-right font-medium">
-                      ₹{(Number(item.saleRate) * item.quantity).toFixed(2)}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {lineItems.map((item: any, idx: number) => {
+                  const rate = Number(item.unitPrice ?? item.sellingPriceAtSale ?? item.saleRate ?? 0)
+                  const amount = Number(item.totalPrice ?? rate * item.quantity)
+                  const name = item.productName ?? item.product?.name ?? '—'
+                  const sku = item.sku ?? item.product?.sku ?? '—'
+
+                  return (
+                    <TableRow key={item.id}>
+                      <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
+                      <TableCell>
+                        <div className="font-medium">{name}</div>
+                        <div className="text-xs text-muted-foreground">SKU: {sku}</div>
+                      </TableCell>
+                      <TableCell className="text-right">₹{rate.toFixed(2)}</TableCell>
+                      <TableCell className="text-center">{item.quantity}</TableCell>
+                      <TableCell className="text-right font-medium">
+                        ₹{amount.toFixed(2)}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           </Card>
@@ -116,8 +142,8 @@ export default function SaleDetailPage() {
               <CardTitle className="text-lg">Customer Info</CardTitle>
             </CardHeader>
             <CardContent className="pt-4 space-y-1">
-              <div className="font-medium">{sale.customerName}</div>
-              {sale.customerMobile && <div className="text-muted-foreground">{sale.customerMobile}</div>}
+              <div className="font-medium">{customerName}</div>
+              {customerMobile && <div className="text-muted-foreground">{customerMobile}</div>}
               {sale.customer && sale.customer.address && (
                 <div className="text-sm text-muted-foreground mt-2">{sale.customer.address}</div>
               )}

@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { useRouter } from 'next/navigation'
 import { useBillingStore } from '@/store/billing.store'
+import { printSaleById } from '@/lib/print-invoice'
 
 import { ProductSearch } from '@/components/billing/product-search'
 import { BillItemsTable } from '@/components/billing/bill-items-table'
@@ -14,7 +14,6 @@ import { Search } from 'lucide-react'
 import { useDebounce } from '@/hooks/use-debounce'
 
 export default function BillingPage() {
-  const router = useRouter()
   const { 
     clearCart, 
     setCustomer, 
@@ -24,11 +23,11 @@ export default function BillingPage() {
     discountType, 
     labourCost,
     getGrandTotal,
-    getDiscountAmount,
-    getTotalProfit
   } = useBillingStore()
 
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isPrinting, setIsPrinting] = useState(false)
+  const [lastSaleId, setLastSaleId] = useState<string | null>(null)
   const [customerSearch, setCustomerSearch] = useState('')
   const debouncedCustomerSearch = useDebounce(customerSearch, 300)
   const [customerResults, setCustomerResults] = useState<any[]>([])
@@ -61,22 +60,40 @@ export default function BillingPage() {
     setCustomerResults([])
   }
 
+  const handlePrint = useCallback(async (saleId?: string | null) => {
+    const id = saleId ?? lastSaleId
+    if (!id) {
+      toast.error('Save the sale before printing the bill')
+      return
+    }
+
+    try {
+      setIsPrinting(true)
+      await printSaleById(id)
+      toast.success('Bill sent to printer')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Print failed')
+    } finally {
+      setIsPrinting(false)
+    }
+  }, [lastSaleId])
+
   // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'F3') {
         e.preventDefault()
         // Focus is handled in product-search component using its ref
-      } else if (e.key === 's' && (e.ctrlKey || e.metaKey)) {
+      } else if (e.key === 'F2') {
         e.preventDefault()
-        handleCompleteSale()
+        handlePrint()
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [items.length])
+  }, [handlePrint])
 
-  const handleCompleteSale = async () => {
+  const handleCompleteSale = useCallback(async () => {
     if (items.length === 0) {
       toast.error('Cart is empty. Add products to bill.')
       return
@@ -86,24 +103,16 @@ export default function BillingPage() {
       setIsSubmitting(true)
       
       const payload = {
-        customerId: customer.id, // optional
-        customerName: customer.name || 'Walk-in Customer',
-        customerMobile: customer.mobile || null,
-        items: items.map(i => ({
+        customerId: customer.id ?? null,
+        items: items.map((i) => ({
           productId: i.productId,
           quantity: i.quantity,
-          saleRate: i.saleRate,
-          buyRate: i.buyRate
         })),
         discountType,
         discountValue,
-        discountAmount: getDiscountAmount(),
         labourCost,
-        grandTotal: getGrandTotal(),
-        totalProfit: getTotalProfit(),
-        // Default to Fully Paid for now - we can add a payment modal later
-        paymentStatus: 'PAID',
-        paidAmount: getGrandTotal()
+        paymentMode: 'CASH',
+        paidAmount: getGrandTotal(),
       }
 
       const res = await fetch('/api/sales', {
@@ -119,16 +128,35 @@ export default function BillingPage() {
       }
 
       toast.success('Sale completed successfully!')
+      setLastSaleId(data.id)
       clearCart()
-      
-      // TODO: Automatically trigger print if setting enabled
+
+      try {
+        await printSaleById(data.id)
+        toast.success('Bill printed')
+      } catch (printError) {
+        toast.error(
+          printError instanceof Error ? printError.message : 'Sale saved but print failed'
+        )
+      }
       
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Error processing sale')
     } finally {
       setIsSubmitting(false)
     }
-  }
+  }, [items, customer, discountType, discountValue, labourCost, getGrandTotal, clearCart])
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 's' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault()
+        handleCompleteSale()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleCompleteSale])
 
   return (
     <div className="flex h-full max-h-screen overflow-hidden">
@@ -194,8 +222,10 @@ export default function BillingPage() {
       {/* Right Column: Checkout Summary */}
       <div className="flex-[3] max-w-sm shrink-0 h-full overflow-y-auto">
         <BillingSummary 
-          onCompleteSale={handleCompleteSale} 
-          isSubmitting={isSubmitting} 
+          onCompleteSale={handleCompleteSale}
+          onPrint={() => handlePrint()}
+          isSubmitting={isSubmitting}
+          isPrinting={isPrinting}
         />
       </div>
     </div>

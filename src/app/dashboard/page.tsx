@@ -65,7 +65,10 @@ export default function DashboardPage() {
   if (loading) return <PageLoading />
   if (!data) return <div className="p-6 text-destructive">Failed to load dashboard data</div>
 
-  const { stats, dailySales, monthlySales, topProducts } = data
+  const { stats, dailySales = [], monthlySales = [], topProducts = [] } = data
+
+  const formatCurrency = (value: unknown) =>
+    `₹${Number(value ?? 0).toFixed(2)}`
 
   return (
     <div className="flex h-full flex-col space-y-6 p-6 overflow-auto">
@@ -78,25 +81,25 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Today's Revenue"
-          value={`₹${stats.todayRevenue.toFixed(2)}`}
+          value={formatCurrency(stats.todayRevenue)}
           icon={IndianRupee}
           description="Total billed today"
         />
         <StatCard
           title="Total Revenue (All Time)"
-          value={`₹${stats.totalRevenue.toFixed(2)}`}
+          value={formatCurrency(stats.totalRevenue)}
           icon={TrendingUp}
           description="Gross sales volume"
         />
         <StatCard
           title="Total Profit"
-          value={`₹${stats.totalProfit.toFixed(2)}`}
+          value={formatCurrency(stats.totalProfit)}
           icon={Percent}
           description="Net profit generated"
         />
         <StatCard
           title="Pending Recovery"
-          value={`₹${stats.pendingRecovery.toFixed(2)}`}
+          value={formatCurrency(stats.pendingRecovery)}
           icon={Clock}
           description="Action required"
           trend={-2.4} // Mock trend
@@ -125,7 +128,7 @@ export default function DashboardPage() {
         />
         <StatCard
           title="Total Labour Cost"
-          value={`₹${stats.totalLabourCost.toFixed(2)}`}
+          value={formatCurrency(stats.totalLabourCost)}
           icon={Wrench}
           description="Surcharges collected"
         />
@@ -159,7 +162,7 @@ export default function DashboardPage() {
                       tickFormatter={(value) => `₹${value}`}
                     />
                     <Tooltip 
-                      formatter={(value: number) => [`₹${value.toFixed(2)}`, 'Revenue']}
+                      formatter={(value: number) => [`₹${Number(value ?? 0).toFixed(2)}`, 'Revenue']}
                       contentStyle={{ borderRadius: '8px', border: '1px solid #E5E7EB' }}
                     />
                     <Line 
@@ -238,7 +241,7 @@ export default function DashboardPage() {
                       tickFormatter={(value) => `₹${value}`}
                     />
                     <Tooltip 
-                      formatter={(value: number, name: string) => [`₹${value.toFixed(2)}`, name === 'revenue' ? 'Revenue' : 'Profit']}
+                      formatter={(value: number, name: string) => [`₹${Number(value ?? 0).toFixed(2)}`, name === 'revenue' ? 'Revenue' : 'Profit']}
                       cursor={{ fill: 'transparent' }}
                       contentStyle={{ borderRadius: '8px' }}
                     />

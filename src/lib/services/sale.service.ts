@@ -89,16 +89,18 @@ export const saleService = {
       }
 
       // 3. Calculate discount
+      const discountValue = Number(input.discountValue) || 0
       let discountAmount = 0
       if (input.discountType === 'PERCENTAGE') {
-        discountAmount = (subtotal * input.discountValue) / 100
+        discountAmount = (subtotal * discountValue) / 100
       } else {
-        discountAmount = input.discountValue
+        discountAmount = discountValue
       }
 
       // 4. Calculate tax
+      const taxPercentage = Number(input.taxPercentage) || 0
       const taxableAmount = subtotal - discountAmount
-      const taxAmount = (taxableAmount * input.taxPercentage) / 100
+      const taxAmount = (taxableAmount * taxPercentage) / 100
 
       // 5. Calculate grand total
       const grandTotal = taxableAmount + taxAmount + input.labourCost

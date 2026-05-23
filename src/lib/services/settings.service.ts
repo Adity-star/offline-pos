@@ -27,12 +27,14 @@ export const settingsService = {
     storeName: string
     storeAddress: string
     storePhone: string
+    storeMobile: string
     storeEmail: string | null
     gstNumber: string | null
     invoicePrefix: string
     taxPercentage: number
     currencySymbol: string
     thermalPaperWidth: string
+    printTemplate: string
     allowNegativeStock: boolean
     logoPath: string | null
   }>) {

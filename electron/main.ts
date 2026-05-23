@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import path from 'path'
-import { setupPrinterIpc } from './ipc/printer.ipc'
-import { setupBackupIpc } from './ipc/backup.ipc'
+import { setupPrinterIpc } from './ipc/printer.ipc.ts'
+import { setupBackupIpc } from './ipc/backup.ipc.ts'
 
 let mainWindow: BrowserWindow | null = null
 

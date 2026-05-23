@@ -105,7 +105,11 @@ export const useBillingStore = create<BillingState>((set, get) => ({
 
   getSubtotal: () => {
     const { items } = get()
-    return items.reduce((sum, item) => sum + (item.saleRate * item.quantity), 0)
+    return items.reduce((sum, item) => {
+      const saleRate = Number(item.saleRate) || 0
+      const quantity = Number(item.quantity) || 0
+      return sum + (saleRate * quantity)
+    }, 0)
   },
 
   getDiscountAmount: () => {
