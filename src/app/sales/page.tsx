@@ -98,10 +98,10 @@ export default function SalesPage() {
           />
         </div>
         
-        <Select value={statusFilter} onValueChange={(val) => {
-          setStatusFilter(val)
-          setPage(1)
-        }}>
+<Select value={statusFilter} onValueChange={(val) => {
+           setStatusFilter(val || 'ALL')
+           setPage(1)
+         }}>
           <SelectTrigger className="w-[180px]">
             <div className="flex items-center gap-2">
               <Filter className="w-4 h-4" />

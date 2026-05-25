@@ -27,7 +27,7 @@ import {
 const adjustSchema = z.object({
   productId: z.string(),
   type: z.enum(['ADD', 'REMOVE']),
-  quantity: z.coerce.number().min(1, 'Quantity must be at least 1'),
+  quantity: z.number().min(1, 'Quantity must be at least 1'),
   reason: z.string().min(1, 'Reason is required'),
 })
 
@@ -113,10 +113,10 @@ export function StockAdjustmentDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Adjustment Type *</label>
-              <Select 
-                value={form.watch('type')} 
-                onValueChange={(val: 'ADD' | 'REMOVE') => form.setValue('type', val)}
-              >
+<Select 
+                 value={form.watch('type')} 
+                 onValueChange={(val) => form.setValue('type', val as 'ADD' | 'REMOVE')}
+               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

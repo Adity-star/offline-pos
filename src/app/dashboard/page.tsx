@@ -161,10 +161,10 @@ export default function DashboardPage() {
                       fontSize={12}
                       tickFormatter={(value) => `₹${value}`}
                     />
-                    <Tooltip 
-                      formatter={(value: number) => [`₹${Number(value ?? 0).toFixed(2)}`, 'Revenue']}
-                      contentStyle={{ borderRadius: '8px', border: '1px solid #E5E7EB' }}
-                    />
+<Tooltip 
+                       formatter={(value: any) => [`₹${Number(value ?? 0).toFixed(2)}`, 'Revenue']}
+                       contentStyle={{ borderRadius: '8px', border: '1px solid #E5E7EB' }}
+                     />
                     <Line 
                       type="monotone" 
                       dataKey="revenue" 
@@ -240,11 +240,11 @@ export default function DashboardPage() {
                       fontSize={12}
                       tickFormatter={(value) => `₹${value}`}
                     />
-                    <Tooltip 
-                      formatter={(value: number, name: string) => [`₹${Number(value ?? 0).toFixed(2)}`, name === 'revenue' ? 'Revenue' : 'Profit']}
-                      cursor={{ fill: 'transparent' }}
-                      contentStyle={{ borderRadius: '8px' }}
-                    />
+<Tooltip 
+                       formatter={(value: any, name: any) => [`₹${Number(value ?? 0).toFixed(2)}`, name === 'revenue' ? 'Revenue' : 'Profit']}
+                       cursor={{ fill: 'transparent' }}
+                       contentStyle={{ borderRadius: '8px' }}
+                     />
                     <Bar dataKey="revenue" fill="#f97316" radius={[4, 4, 0, 0]} barSize={40} />
                     <Bar dataKey="profit" fill="#10b981" radius={[4, 4, 0, 0]} barSize={40} />
                   </BarChart>

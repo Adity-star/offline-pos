@@ -25,7 +25,7 @@ const settingsSchema = z.object({
   termsConditions: z.string().optional(),
   
   invoicePrefix: z.string().optional(),
-  taxPercentage: z.coerce.number().min(0).max(100),
+  taxPercentage: z.number().min(0).max(100),
   currencySymbol: z.string().min(1, 'Symbol required'),
   printTemplate: z.enum(['THERMAL_80MM', 'A4']),
   allowNegativeStock: z.boolean(),
@@ -49,7 +49,7 @@ export default function SettingsPage() {
       gstNumber: '',
       termsConditions: '',
       invoicePrefix: 'INV-',
-      taxPercentage: 0,
+      taxPercentage: 0 as number,
       currencySymbol: '₹',
       printTemplate: 'THERMAL_80MM',
       allowNegativeStock: false,

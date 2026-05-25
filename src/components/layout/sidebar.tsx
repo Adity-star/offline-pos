@@ -11,6 +11,7 @@ import {
   BarChart3,
   Settings,
   LogOut,
+  DatabaseBackup,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -21,6 +22,7 @@ const navItems = [
   { href: '/inventory', icon: Boxes, label: 'Inventory' },
   { href: '/customers', icon: Users, label: 'Customers' },
   { href: '/dashboard', icon: BarChart3, label: 'Dashboard' },
+  { href: '/backup', icon: DatabaseBackup, label: 'Backup' },
   { href: '/settings', icon: Settings, label: 'Settings' },
 ]
 

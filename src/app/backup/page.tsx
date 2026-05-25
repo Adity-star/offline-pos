@@ -12,38 +12,43 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 
 export default function BackupPage() {
-  const [backups, setBackups] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false)
-  const [selectedBackupToRestore, setSelectedBackupToRestore] = useState<string | null>(null)
+   const [backups, setBackups] = useState<any[]>([])
+   const [loading, setLoading] = useState(true)
+   const [isProcessing, setIsProcessing] = useState(false)
+   const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false)
+   const [selectedBackupToRestore, setSelectedBackupToRestore] = useState<string | null>(null)
+   const isElectron = typeof window !== 'undefined' && !!window.electron
 
-  const fetchBackups = async () => {
-    try {
-      if (typeof window !== 'undefined' && window.electron?.listBackups) {
-        const list = await window.electron.listBackups()
-        setBackups(list || [])
-      }
-    } catch (error) {
-      console.error('Failed to load backups')
-    } finally {
-      setLoading(false)
-    }
-  }
+   const fetchBackups = async () => {
+     try {
+       if (isElectron) {
+         const list = await window.electron.listBackups()
+         setBackups(list || [])
+       }
+     } catch (error) {
+       console.error('Failed to load backups')
+     } finally {
+       setLoading(false)
+     }
+   }
 
   useEffect(() => {
     fetchBackups()
   }, [])
 
   const handleCreateBackup = async () => {
+    if (!isElectron) {
+      toast.error('This feature is only available in the desktop app')
+      return
+    }
     setIsProcessing(true)
     try {
       const result = await window.electron.createBackup()
-      if (result.success) {
+      if (result?.success) {
         toast.success(`Backup created successfully at ${result.filePath}`)
         fetchBackups()
       } else {
-        throw new Error(result.error)
+        throw new Error(result?.error)
       }
     } catch (error: any) {
       toast.error(error.message || 'Failed to create backup')
@@ -58,15 +63,19 @@ export default function BackupPage() {
   }
 
   const handleRestore = async () => {
+    if (!isElectron) {
+      toast.error('This feature is only available in the desktop app')
+      return
+    }
     setIsProcessing(true)
     try {
       const result = await window.electron.restoreBackup(selectedBackupToRestore || undefined)
-      if (result.success) {
+      if (result?.success) {
         toast.success('Database restored successfully! The application will now reload.')
         setTimeout(() => window.location.reload(), 2000)
       } else {
-        if (result.error !== 'Cancelled') {
-           throw new Error(result.error)
+        if (result?.error !== 'Cancelled') {
+           throw new Error(result?.error)
         }
       }
     } catch (error: any) {
@@ -85,6 +94,13 @@ export default function BackupPage() {
         description="Secure your business data and restore it if you move to a new computer." 
       />
 
+      {!isElectron && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-md">
+          <p className="font-medium">Desktop App Required</p>
+          <p className="text-sm mt-1">Backup and restore features are only available when running the desktop application.</p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
         <Card className="border-emerald-500/20 shadow-sm">
           <CardHeader>
@@ -102,7 +118,7 @@ export default function BackupPage() {
             <Button 
               className="w-full bg-emerald-600 hover:bg-emerald-700 h-12 text-md" 
               onClick={handleCreateBackup}
-              disabled={isProcessing}
+              disabled={isProcessing || !isElectron}
             >
               <UploadCloud className="w-5 h-5 mr-2" />
               Create Full Backup Now
@@ -127,7 +143,7 @@ export default function BackupPage() {
               variant="outline"
               className="w-full h-12 text-md border-amber-500 text-amber-700 hover:bg-amber-50" 
               onClick={() => triggerRestore()}
-              disabled={isProcessing}
+              disabled={isProcessing || !isElectron}
             >
               <Download className="w-5 h-5 mr-2" />
               Select ZIP & Restore
@@ -157,15 +173,16 @@ export default function BackupPage() {
                           <span>{(b.size / 1024 / 1024).toFixed(2)} MB</span>
                        </div>
                      </div>
-                     <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="text-amber-600 hover:text-amber-700 hover:bg-amber-100"
-                        onClick={() => triggerRestore(b.path)}
-                      >
-                       <RotateCcw className="w-4 h-4 mr-2" />
-                       Restore
-                     </Button>
+<Button 
+                         variant="ghost" 
+                         size="sm" 
+                         className="text-amber-600 hover:text-amber-700 hover:bg-amber-100"
+                         onClick={() => triggerRestore(b.path)}
+                         disabled={!isElectron}
+                       >
+                        <RotateCcw className="w-4 h-4 mr-2" />
+                        Restore
+                      </Button>
                    </div>
                  ))}
                </div>
@@ -174,15 +191,15 @@ export default function BackupPage() {
         </Card>
       </div>
 
-      <ConfirmDialog
-        open={restoreConfirmOpen}
-        onOpenChange={setRestoreConfirmOpen}
-        title="DANGER: Restoring Database"
-        description="Are you absolutely sure you want to restore the database? All data and sales entered AFTER the backup date will be permanently deleted and replaced by the backup. The application will reboot."
-        confirmText="Yes, Rewrite Database"
-        variant="destructive"
-        onConfirm={handleRestore}
-      />
+<ConfirmDialog
+         open={restoreConfirmOpen}
+         onOpenChange={setRestoreConfirmOpen}
+         title="DANGER: Restoring Database"
+         description="Are you absolutely sure you want to restore the database? All data and sales entered AFTER the backup date will be permanently deleted and replaced by the backup. The application will reboot."
+         confirmLabel="Yes, Rewrite Database"
+         variant="destructive"
+         onConfirm={handleRestore}
+       />
     </div>
   )
 }
