@@ -1,6 +1,7 @@
 {
   "name": "offline-pos",
   "version": "0.1.0",
+  "type": "module",
   "private": true,
   "main": "electron/main.ts",
   "scripts": {
@@ -19,6 +20,7 @@
     "@prisma/adapter-better-sqlite3": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "@tanstack/react-table": "^8.21.3",
+    "@tanstack/react-virtual": "^3.13.25",
     "archiver": "^8.0.0",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.10.0",
@@ -53,6 +55,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/archiver": "^7.0.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.19.41",
     "@types/react": "^19",

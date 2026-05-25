@@ -1,7 +1,12 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import path from 'path'
+import { fileURLToPath } from 'url'
+
 import { setupPrinterIpc } from './ipc/printer.ipc.ts'
 import { setupBackupIpc } from './ipc/backup.ipc.ts'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 let mainWindow: BrowserWindow | null = null
 
@@ -14,6 +19,7 @@ function createWindow() {
     minWidth: 1200,
     minHeight: 700,
     autoHideMenuBar: true,
+
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -24,33 +30,49 @@ function createWindow() {
 
   if (isDev) {
     mainWindow.loadURL('http://localhost:3000')
-    mainWindow.webContents.openDevTools()
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../out/index.html'))
+    mainWindow.loadFile(
+      path.join(__dirname, '../out/index.html')
+    )
   }
 }
 
-app.whenReady().then(() => {
-  setupPrinterIpc()
-  setupBackupIpc()
+  app.disableHardwareAcceleration()
 
-  // General App Path helper
-  ipcMain.handle('get-app-path', () => app.getAppPath())
+  app.commandLine.appendSwitch(
+    'disable-gpu'
+  )
 
-  createWindow()
+  app.commandLine.appendSwitch(
+    'js-flags',
+    '--max-old-space-size=4096'
+  )
+app.whenReady()
+  .then(() => {
+    setupPrinterIpc()
+    setupBackupIpc()
 
-  // Simple auto-backup when closing the app
-  app.on('before-quit', async () => {
-    // A real app might call the backup manager silently here
-    console.log('App closing... auto-backup could fire here.')
+    ipcMain.handle('get-app-path', () => {
+      return app.getAppPath()
+    })
+
+    createWindow()
+
+    app.on('before-quit', async () => {
+      console.log(
+        'App closing... auto-backup could fire here.'
+      )
+    })
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow()
+      }
+    })
   })
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow()
-    }
+  .catch((err) => {
+    console.error('Electron startup failed:', err)
   })
-})
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

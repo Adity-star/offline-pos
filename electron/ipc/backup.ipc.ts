@@ -1,7 +1,6 @@
 import { ipcMain, app, dialog } from 'electron'
-import { BackupManager } from '../backup/backup-manager.ts'
-import { RestoreManager } from '../backup/restore-manager.ts'
-
+import { BackupManager } from '../backup/backup-manager'
+import { RestoreManager } from '../backup/restore-manager'
 export function setupBackupIpc() {
   const appPath = app.getAppPath()
   const backupManager = new BackupManager(appPath)
