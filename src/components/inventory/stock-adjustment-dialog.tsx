@@ -25,13 +25,36 @@ import {
 } from '@/components/ui/select'
 
 const adjustSchema = z.object({
-  productId: z.string(),
-  type: z.enum(['ADD', 'REMOVE']),
-  quantity: z.coerce.number().min(1, 'Quantity must be at least 1'),
-  reason: z.string().min(1, 'Reason is required'),
+  productId: z.string().min(1),
+
+  type: z.enum([
+    'ADD',
+    'REMOVE',
+  ]),
+
+  quantity: z.union([
+    z.string(),
+    z.number(),
+  ]).transform((val) =>
+    Number(val)
+  ).refine(
+    (val) => val >= 1,
+    {
+      message:
+        'Quantity must be at least 1',
+    }
+  ),
+
+  reason: z.string().min(
+    2,
+    'Reason is required'
+  ),
 })
 
-type AdjustFormValues = z.infer<typeof adjustSchema>
+type AdjustFormValues =
+  z.output<
+    typeof adjustSchema
+  >
 
 interface StockAdjustmentDialogProps {
   open: boolean
@@ -48,8 +71,11 @@ export function StockAdjustmentDialog({
 }: StockAdjustmentDialogProps) {
   const [loading, setLoading] = useState(false)
 
-  const form = useForm<AdjustFormValues>({
-    resolver: zodResolver(adjustSchema),
+  type AdjustFormInput = z.input<typeof adjustSchema>
+type AdjustFormOutput = z.output<typeof adjustSchema>
+
+const form = useForm<AdjustFormInput, unknown, AdjustFormOutput>({
+  resolver: zodResolver(adjustSchema),
     defaultValues: {
       productId: '',
       type: 'ADD',
@@ -69,7 +95,7 @@ export function StockAdjustmentDialog({
     }
   }, [open, product, form])
 
-  const onSubmit = async (values: AdjustFormValues) => {
+  const onSubmit = async (values: AdjustFormOutput) => {
     try {
       setLoading(true)
 

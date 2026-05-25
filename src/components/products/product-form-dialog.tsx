@@ -28,7 +28,8 @@ const productSchema = z.object({
   notes: z.string().optional(),
 })
 
-type ProductFormValues = z.infer<typeof productSchema>
+type ProductFormValues =
+  z.output<typeof productSchema>
 
 interface ProductFormDialogProps {
   open: boolean
@@ -47,8 +48,13 @@ export function ProductFormDialog({
   const [loading, setLoading] = useState(false)
   const isEditing = !!product
 
-  const form = useForm<ProductFormValues>({
-    resolver: zodResolver(productSchema),
+  const form = useForm<
+  z.input<typeof productSchema>,
+  any,
+  z.output<typeof productSchema>
+>({
+  resolver:
+    zodResolver(productSchema),
     defaultValues: {
       name: '',
       sku: '',
