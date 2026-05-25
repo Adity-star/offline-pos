@@ -27,7 +27,7 @@ import {
 const adjustSchema = z.object({
   productId: z.string(),
   type: z.enum(['ADD', 'REMOVE']),
-  quantity: z.number().min(1, 'Quantity must be at least 1'),
+  quantity: z.coerce.number().min(1, 'Quantity must be at least 1'),
   reason: z.string().min(1, 'Reason is required'),
 })
 
