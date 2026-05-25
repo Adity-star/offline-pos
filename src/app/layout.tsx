@@ -9,7 +9,7 @@ const inter = Inter({
 })
 
 export const metadata = {
-  title: 'Offline POS - Billing & Inventory',
+  title: 'AK Software',
   description: 'Production-grade offline billing and inventory management system',
 }
 

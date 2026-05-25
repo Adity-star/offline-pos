@@ -20,10 +20,10 @@ const productSchema = z.object({
   sku: z.string().min(1, 'SKU is required'),
   barcode: z.string().optional(),
   categoryId: z.string().min(1, 'Category is required'),
-  costPrice: z.number().min(0, 'Cost price cannot be negative'),
-  sellingPrice: z.number().min(0, 'Selling price cannot be negative'),
-  currentStock: z.number().int().min(0),
-  minStockAlert: z.number().int().min(0),
+  costPrice: z.coerce.number().min(0, 'Cost price cannot be negative'),
+  sellingPrice: z.coerce.number().min(0, 'Selling price cannot be negative'),
+  currentStock: z.coerce.number().int().min(0),
+  minStockAlert: z.coerce.number().int().min(0),
   unitType: z.string().min(1, 'Unit type is required'),
   notes: z.string().optional(),
 })
@@ -68,8 +68,12 @@ export function ProductFormDialog({
     if (open) {
       fetch('/api/categories')
         .then((res) => res.json())
-        .then((data) => setCategories(data))
-        .catch(() => toast.error('Failed to load categories'))
+        .then((data) => {
+          setCategories(data.categories || data)
+        })
+        .catch(() =>
+          toast.error('Failed to load categories')
+        )
     }
   }, [open])
 

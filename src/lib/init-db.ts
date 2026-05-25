@@ -1,10 +1,11 @@
 import { Prisma } from '@prisma/client'
-import { prisma } from '../src/lib/prisma'
+import { prisma } from './prisma'
 
-async function main() {
+export async function initializeDatabase() {
   console.log(`Start seeding ...`)
 
   const existingSettings = await prisma.setting.count()
+
   if (existingSettings === 0) {
     await prisma.setting.create({
       data: {
@@ -19,10 +20,17 @@ async function main() {
         allowNegativeStock: false,
       },
     })
+
     console.log(`Created default settings`)
   }
 
-  const categories = ['Electronics', 'Groceries', 'Clothing', 'Miscellaneous']
+  const categories = [
+    'Electronics',
+    'Miscellaneous',
+    'Hardware',
+    'Tiles'
+  ]
+
   for (const name of categories) {
     await prisma.category.upsert({
       where: { name },
@@ -30,17 +38,7 @@ async function main() {
       create: { name },
     })
   }
-  console.log(`Created default categories`)
 
+  console.log(`Created default categories`)
   console.log(`Seeding finished.`)
 }
-
-main()
-  .then(async () => {
-    await prisma.$disconnect()
-  })
-  .catch(async (e) => {
-    console.error('Error during seeding:', e)
-    await prisma.$disconnect()
-    process.exit(1)
-  })

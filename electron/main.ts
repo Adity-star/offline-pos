@@ -3,73 +3,149 @@ import path from 'path'
 
 import { setupPrinterIpc } from './ipc/printer.ipc.js'
 import { setupBackupIpc } from './ipc/backup.ipc.js'
+import { initializeDatabase } from '../src/lib/init-db.js'
 
+const isDev = !app.isPackaged
 
 let mainWindow: BrowserWindow | null = null
 
-const isDev = process.env.NODE_ENV === 'development'
+// ---------------------------------------------------
+// GPU & MEMORY CONFIG
+// ---------------------------------------------------
+
+app.disableHardwareAcceleration()
+
+app.commandLine.appendSwitch('disable-gpu')
+
+app.commandLine.appendSwitch(
+  'js-flags',
+  '--max-old-space-size=4096'
+)
+
+// ---------------------------------------------------
+// CREATE WINDOW
+// ---------------------------------------------------
 
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
+
     height: 900,
+
     minWidth: 1200,
+
     minHeight: 700,
+
     autoHideMenuBar: true,
 
+    backgroundColor: '#ffffff',
+
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(
+        __dirname,
+        'preload.js'
+      ),
+
       contextIsolation: true,
+
       nodeIntegration: false,
-      sandbox: true,
+
+      sandbox: false,
     },
   })
 
+  // DEBUG LOAD FAILURES
+  mainWindow.webContents.on(
+    'did-fail-load',
+    (_, code, desc) => {
+      console.error(
+        'Renderer failed:',
+        code,
+        desc
+      )
+    }
+  )
+
+  // DEBUG RENDERER LOGS
+  mainWindow.webContents.on(
+    'console-message',
+    (_, level, message) => {
+      console.log(
+        `Renderer [${level}]`,
+        message
+      )
+    }
+  )
+
+  // TEMP DEBUGGING
   if (isDev) {
-    mainWindow.loadURL('http://localhost:3000')
+    mainWindow.webContents.openDevTools()
+  }
+
+  // ---------------------------------------------------
+  // LOAD APP
+  // ---------------------------------------------------
+
+  if (isDev) {
+    mainWindow.loadURL(
+      'http://localhost:3000'
+    )
   } else {
-    mainWindow.loadFile(
-      path.join(__dirname, '../out/index.html')
+    // PRODUCTION FALLBACK
+    // You MUST run:
+    // npm run start
+    // before opening EXE
+
+    mainWindow.loadURL(
+      'http://127.0.0.1:3000'
     )
   }
+
+  mainWindow.on('closed', () => {
+    mainWindow = null
+  })
 }
 
-  app.disableHardwareAcceleration()
+// ---------------------------------------------------
+// APP STARTUP
+// ---------------------------------------------------
 
-  app.commandLine.appendSwitch(
-    'disable-gpu'
-  )
-
-  app.commandLine.appendSwitch(
-    'js-flags',
-    '--max-old-space-size=4096'
-  )
-app.whenReady()
-  .then(() => {
+app
+  .whenReady()
+  .then(async () => {
     setupPrinterIpc()
+
     setupBackupIpc()
 
-    ipcMain.handle('get-app-path', () => {
-      return app.getAppPath()
-    })
+    ipcMain.handle(
+      'get-app-path',
+      () => {
+        return app.getAppPath()
+      }
+    )
+    await initializeDatabase()
 
     createWindow()
 
-    app.on('before-quit', async () => {
-      console.log(
-        'App closing... auto-backup could fire here.'
-      )
-    })
-
     app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0) {
+      if (
+        BrowserWindow.getAllWindows()
+          .length === 0
+      ) {
         createWindow()
       }
     })
   })
   .catch((err) => {
-    console.error('Electron startup failed:', err)
+    console.error(
+      'Electron startup failed:',
+      err
+    )
   })
+
+// ---------------------------------------------------
+// APP CLOSE
+// ---------------------------------------------------
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

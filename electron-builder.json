@@ -1,9 +1,13 @@
 {
   "appId": "com.offline.pos",
-  "productName": "Offline POS",
+  "productName": "ak-software",
   "directories": {
     "output": "dist"
   },
+  "asar":true,
+  "asarUnpack": [
+    "**/*.node"
+  ],
   "files": [
     "out/**/*",
     "dist-electron/**/*",
