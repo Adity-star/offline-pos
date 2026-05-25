@@ -17,7 +17,7 @@ export class BackupManager {
   }
 
   async createBackup(): Promise<{ success: boolean; filePath?: string; error?: string }> {
-    return new Promise((resolve) => {
+    return new Promise(async (resolve) => {
       try {
         if (!fs.existsSync(this.dbPath)) {
            return resolve({ success: false, error: 'Database file not found.' })
@@ -28,7 +28,7 @@ export class BackupManager {
         const backupFilePath = path.join(this.backupDir, backupFileName)
 
         const output = fs.createWriteStream(backupFilePath)
-        const archive = archiver('zip', { zlib: { level: 9 } })
+        const archive = (await import('archiver')).default('zip', { zlib: { level: 9 } })
 
         output.on('close', () => {
           resolve({ success: true, filePath: backupFilePath })

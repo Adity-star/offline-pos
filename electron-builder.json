@@ -6,8 +6,9 @@
   },
   "files": [
     "out/**/*",
-    "electron/**/*",
-    "node_modules/**/*"
+    "dist-electron/**/*",
+    "node_modules/**/*",
+    "prisma/**/*"
   ],
   "win": {
     "target": "nsis"

@@ -1,12 +1,9 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import path from 'path'
-import { fileURLToPath } from 'url'
 
-import { setupPrinterIpc } from './ipc/printer.ipc.ts'
-import { setupBackupIpc } from './ipc/backup.ipc.ts'
+import { setupPrinterIpc } from './ipc/printer.ipc.js'
+import { setupBackupIpc } from './ipc/backup.ipc.js'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
 
 let mainWindow: BrowserWindow | null = null
 
