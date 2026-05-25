@@ -17,7 +17,8 @@ export default function BackupPage() {
    const [isProcessing, setIsProcessing] = useState(false)
    const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false)
    const [selectedBackupToRestore, setSelectedBackupToRestore] = useState<string | null>(null)
-   const isElectron = typeof window !== 'undefined' && !!window.electron
+   const [isElectron, setIsElectron] = useState(false)
+   const [mounted, setMounted] = useState(false)
 
    const fetchBackups = async () => {
      try {
@@ -33,8 +34,22 @@ export default function BackupPage() {
    }
 
   useEffect(() => {
+  setMounted(true)
+
+  const electronAvailable =
+    typeof window !== 'undefined' &&
+    !!window.electron
+
+  setIsElectron(
+    electronAvailable
+  )
+
+  if (electronAvailable) {
     fetchBackups()
-  }, [])
+  } else {
+    setLoading(false)
+  }
+}, [])
 
   const handleCreateBackup = async () => {
     if (!isElectron) {
@@ -85,6 +100,10 @@ export default function BackupPage() {
       setRestoreConfirmOpen(false)
       setSelectedBackupToRestore(null)
     }
+  }
+
+  if (!mounted) {
+    return <PageLoading/>
   }
 
   return (
