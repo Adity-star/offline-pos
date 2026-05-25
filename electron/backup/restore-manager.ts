@@ -1,56 +1,141 @@
 import fs from 'fs'
 import path from 'path'
-import extract from 'extract-zip'
+import os from 'os'
+
+import { app } from 'electron'
+
+const AdmZip = require('adm-zip')
 
 export class RestoreManager {
   private dbPath: string
 
-  constructor(appPath: string) {
-    this.dbPath = path.join(appPath, 'prisma', 'dev.db')
+  constructor() {
+    // SQLITE DATABASE LOCATION
+    this.dbPath = path.join(
+      app.getPath('userData'),
+      'shop.db'
+    )
+
+    console.log(
+      'Restore DB path:',
+      this.dbPath
+    )
   }
 
-  async restoreBackup(zipPath: string): Promise<{ success: boolean; error?: string }> {
-    return new Promise(async (resolve) => {
-      try {
-        if (!fs.existsSync(zipPath)) {
-          return resolve({ success: false, error: 'Backup file not found.' })
+  async restoreBackup(
+    zipPath: string
+  ): Promise<{
+    success: boolean
+
+    error?: string
+  }> {
+    try {
+      // CHECK ZIP EXISTS
+      if (
+        !fs.existsSync(zipPath)
+      ) {
+        return {
+          success: false,
+
+          error:
+            'Backup file not found.',
         }
-
-        // We extract to a temporary folder, check if dev.db exists, then replace the current DB.
-        const tempDir = path.join(path.dirname(zipPath), 'pos_temp_extract_' + Date.now())
-        
-        try {
-          await extract(zipPath, { dir: tempDir })
-          
-          const extractedDbPath = path.join(tempDir, 'dev.db')
-          
-          if (!fs.existsSync(extractedDbPath)) {
-            throw new Error('Invalid backup file. Missing dev.db.')
-          }
-
-          // Before overwriting, maybe create a temporary backup of the CURRENT db just in case
-          const currentBackupPath = this.dbPath + '.bak'
-          if (fs.existsSync(this.dbPath)) {
-             fs.copyFileSync(this.dbPath, currentBackupPath)
-          }
-
-          // Replace the actual DB
-          fs.copyFileSync(extractedDbPath, this.dbPath)
-
-          // Cleanup temp extraction
-          fs.rmSync(tempDir, { recursive: true, force: true })
-          
-          resolve({ success: true })
-        } catch (extractError: any) {
-           // Cleanup temp extraction if failed
-           if (fs.existsSync(tempDir)) {
-             fs.rmSync(tempDir, { recursive: true, force: true })
-           }
-           resolve({ success: false, error: extractError.message })
-        }
-      } catch (error: any) {
-        resolve({ success: false, error: error.message })
       }
-    })
+
+      // TEMP DIRECTORY
+      const tempDir = path.join(
+        os.tmpdir(),
+        `pos_restore_${Date.now()}`
+      )
+
+      fs.mkdirSync(tempDir, {
+        recursive: true,
+      })
+
+      // OPEN ZIP
+      const zip = new AdmZip(
+        zipPath
+      )
+
+      // EXTRACT ZIP
+      zip.extractAllTo(
+        tempDir,
+        true
+      )
+
+      // EXTRACTED SQLITE FILE
+      const extractedDbPath =
+        path.join(
+          tempDir,
+          'shop.db'
+        )
+
+      // VALIDATE
+      if (
+        !fs.existsSync(
+          extractedDbPath
+        )
+      ) {
+        fs.rmSync(tempDir, {
+          recursive: true,
+
+          force: true,
+        })
+
+        return {
+          success: false,
+
+          error:
+            'Invalid backup file.',
+        }
+      }
+
+      // SAFETY BACKUP
+      if (
+        fs.existsSync(this.dbPath)
+      ) {
+        const backupOldDb =
+          this.dbPath + '.bak'
+
+        fs.copyFileSync(
+          this.dbPath,
+          backupOldDb
+        )
+      }
+
+      // REPLACE CURRENT DB
+      fs.copyFileSync(
+        extractedDbPath,
+        this.dbPath
+      )
+
+      // CLEAN TEMP
+      fs.rmSync(tempDir, {
+        recursive: true,
+
+        force: true,
+      })
+
+      console.log(
+        'Database restored successfully'
+      )
+
+      return {
+        success: true,
+      }
+    } catch (error: any) {
+      console.error(
+        'Restore failed:',
+        error
+      )
+
+      return {
+        success: false,
+
+        error:
+          error?.message ||
+          'Restore failed',
+      }
+    }
   }
 }

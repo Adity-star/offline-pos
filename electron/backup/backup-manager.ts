@@ -4,19 +4,21 @@ import os from 'os'
 
 import { app } from 'electron'
 
+const AdmZip = require('adm-zip')
+
 export class BackupManager {
   private dbPath: string
 
   private backupDir: string
 
   constructor() {
-    // PRODUCTION SQLITE LOCATION
+    // SQLITE DATABASE LOCATION
     this.dbPath = path.join(
       app.getPath('userData'),
       'shop.db'
     )
 
-    // BACKUP STORAGE LOCATION
+    // BACKUP DIRECTORY
     this.backupDir = path.join(
       os.homedir(),
       'Desktop',
@@ -50,126 +52,78 @@ export class BackupManager {
 
     error?: string
   }> {
-    return new Promise(
-      async (resolve) => {
-        try {
-          // CHECK DATABASE EXISTS
-          if (
-            !fs.existsSync(this.dbPath)
-          ) {
-            console.error(
-              'Database not found:',
-              this.dbPath
-            )
+    try {
+      // CHECK DATABASE EXISTS
+      if (
+        !fs.existsSync(this.dbPath)
+      ) {
+        console.error(
+          'Database not found:',
+          this.dbPath
+        )
 
-            return resolve({
-              success: false,
+        return {
+          success: false,
 
-              error:
-                'Database file not found.',
-            })
-          }
-
-          // TIMESTAMP
-          const dateStr =
-            new Date()
-              .toISOString()
-              .replace(/[:T]/g, '-')
-              .split('.')[0]
-
-          const backupFileName = `pos_backup_${dateStr}.zip`
-
-          const backupFilePath =
-            path.join(
-              this.backupDir,
-              backupFileName
-            )
-
-          // OUTPUT STREAM
-          const output =
-            fs.createWriteStream(
-              backupFilePath
-            )
-
-          const archiverModule =
-            await import('archiver')
-
-          const archiver =
-            archiverModule.default
-
-          const archive = archiver(
-            'zip',
-            {
-              zlib: {
-                level: 9,
-              },
-            }
-          )
-
-          // SUCCESS
-          output.on(
-            'close',
-            () => {
-              console.log(
-                'Backup created:',
-                backupFilePath
-              )
-
-              resolve({
-                success: true,
-
-                filePath:
-                  backupFilePath,
-              })
-            }
-          )
-
-          // ERROR
-          archive.on(
-            'error',
-            (err) => {
-              console.error(
-                'Archive error:',
-                err
-              )
-
-              resolve({
-                success: false,
-
-                error:
-                  err.message,
-              })
-            }
-          )
-
-          archive.pipe(output)
-
-          // ADD SQLITE DB
-          archive.file(
-            this.dbPath,
-            {
-              name: 'shop.db',
-            }
-          )
-
-          // FINALIZE ZIP
-          await archive.finalize()
-        } catch (error: any) {
-          console.error(
-            'Backup failed:',
-            error
-          )
-
-          resolve({
-            success: false,
-
-            error:
-              error.message ||
-              'Backup failed',
-          })
+          error:
+            'Database file not found.',
         }
       }
-    )
+
+      // TIMESTAMP
+      const dateStr =
+        new Date()
+          .toISOString()
+          .replace(/[:T]/g, '-')
+          .split('.')[0]
+
+      // ZIP NAME
+      const backupFileName = `pos_backup_${dateStr}.zip`
+
+      const backupFilePath =
+        path.join(
+          this.backupDir,
+          backupFileName
+        )
+
+      // CREATE ZIP
+      const zip = new AdmZip()
+
+      // ADD SQLITE FILE
+      zip.addLocalFile(
+        this.dbPath
+      )
+
+      // WRITE ZIP
+      zip.writeZip(
+        backupFilePath
+      )
+
+      console.log(
+        'Backup created:',
+        backupFilePath
+      )
+
+      return {
+        success: true,
+
+        filePath:
+          backupFilePath,
+      }
+    } catch (error: any) {
+      console.error(
+        'Backup failed:',
+        error
+      )
+
+      return {
+        success: false,
+
+        error:
+          error?.message ||
+          'Backup failed',
+      }
+    }
   }
 
   async listBackups() {

@@ -8,7 +8,7 @@ export function setupBackupIpc() {
      new BackupManager()
 
   const restoreManager =
-     new RestoreManager(userDataPath)
+     new RestoreManager()
 
   ipcMain.handle('backup:create', async () => {
     try {

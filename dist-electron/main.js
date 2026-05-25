@@ -132,7 +132,7 @@ var require_init_db = __commonJS({
 });
 
 // electron/main.ts
-var import_electron6 = require("electron");
+var import_electron7 = require("electron");
 var import_path4 = __toESM(require("path"));
 
 // electron/ipc/printer.ipc.ts
@@ -254,13 +254,14 @@ function setupPrinterIpc() {
 }
 
 // electron/ipc/backup.ipc.ts
-var import_electron5 = require("electron");
+var import_electron6 = require("electron");
 
 // electron/backup/backup-manager.ts
 var import_fs = __toESM(require("fs"));
 var import_path = __toESM(require("path"));
 var import_os = __toESM(require("os"));
 var import_electron4 = require("electron");
+var AdmZip = require("adm-zip");
 var BackupManager = class {
   constructor() {
     this.dbPath = import_path.default.join(
@@ -287,84 +288,48 @@ var BackupManager = class {
     );
   }
   async createBackup() {
-    return new Promise(
-      async (resolve) => {
-        try {
-          if (!import_fs.default.existsSync(this.dbPath)) {
-            console.error(
-              "Database not found:",
-              this.dbPath
-            );
-            return resolve({
-              success: false,
-              error: "Database file not found."
-            });
-          }
-          const dateStr = (/* @__PURE__ */ new Date()).toISOString().replace(/[:T]/g, "-").split(".")[0];
-          const backupFileName = `pos_backup_${dateStr}.zip`;
-          const backupFilePath = import_path.default.join(
-            this.backupDir,
-            backupFileName
-          );
-          const output = import_fs.default.createWriteStream(
-            backupFilePath
-          );
-          const archiverModule = await import("archiver");
-          const archiver = archiverModule.default;
-          const archive = archiver(
-            "zip",
-            {
-              zlib: {
-                level: 9
-              }
-            }
-          );
-          output.on(
-            "close",
-            () => {
-              console.log(
-                "Backup created:",
-                backupFilePath
-              );
-              resolve({
-                success: true,
-                filePath: backupFilePath
-              });
-            }
-          );
-          archive.on(
-            "error",
-            (err) => {
-              console.error(
-                "Archive error:",
-                err
-              );
-              resolve({
-                success: false,
-                error: err.message
-              });
-            }
-          );
-          archive.pipe(output);
-          archive.file(
-            this.dbPath,
-            {
-              name: "shop.db"
-            }
-          );
-          await archive.finalize();
-        } catch (error) {
-          console.error(
-            "Backup failed:",
-            error
-          );
-          resolve({
-            success: false,
-            error: error.message || "Backup failed"
-          });
-        }
+    try {
+      if (!import_fs.default.existsSync(this.dbPath)) {
+        console.error(
+          "Database not found:",
+          this.dbPath
+        );
+        return {
+          success: false,
+          error: "Database file not found."
+        };
       }
-    );
+      const dateStr = (/* @__PURE__ */ new Date()).toISOString().replace(/[:T]/g, "-").split(".")[0];
+      const backupFileName = `pos_backup_${dateStr}.zip`;
+      const backupFilePath = import_path.default.join(
+        this.backupDir,
+        backupFileName
+      );
+      const zip = new AdmZip();
+      zip.addLocalFile(
+        this.dbPath
+      );
+      zip.writeZip(
+        backupFilePath
+      );
+      console.log(
+        "Backup created:",
+        backupFilePath
+      );
+      return {
+        success: true,
+        filePath: backupFilePath
+      };
+    } catch (error) {
+      console.error(
+        "Backup failed:",
+        error
+      );
+      return {
+        success: false,
+        error: error?.message || "Backup failed"
+      };
+    }
   }
   async listBackups() {
     try {
@@ -406,50 +371,98 @@ var BackupManager = class {
 // electron/backup/restore-manager.ts
 var import_fs2 = __toESM(require("fs"));
 var import_path2 = __toESM(require("path"));
-var import_extract_zip = __toESM(require("extract-zip"));
+var import_os2 = __toESM(require("os"));
+var import_electron5 = require("electron");
+var AdmZip2 = require("adm-zip");
 var RestoreManager = class {
-  constructor(appPath) {
-    this.dbPath = import_path2.default.join(appPath, "prisma", "dev.db");
+  constructor() {
+    this.dbPath = import_path2.default.join(
+      import_electron5.app.getPath("userData"),
+      "shop.db"
+    );
+    console.log(
+      "Restore DB path:",
+      this.dbPath
+    );
   }
   async restoreBackup(zipPath) {
-    return new Promise(async (resolve) => {
-      try {
-        if (!import_fs2.default.existsSync(zipPath)) {
-          return resolve({ success: false, error: "Backup file not found." });
-        }
-        const tempDir = import_path2.default.join(import_path2.default.dirname(zipPath), "pos_temp_extract_" + Date.now());
-        try {
-          await (0, import_extract_zip.default)(zipPath, { dir: tempDir });
-          const extractedDbPath = import_path2.default.join(tempDir, "dev.db");
-          if (!import_fs2.default.existsSync(extractedDbPath)) {
-            throw new Error("Invalid backup file. Missing dev.db.");
-          }
-          const currentBackupPath = this.dbPath + ".bak";
-          if (import_fs2.default.existsSync(this.dbPath)) {
-            import_fs2.default.copyFileSync(this.dbPath, currentBackupPath);
-          }
-          import_fs2.default.copyFileSync(extractedDbPath, this.dbPath);
-          import_fs2.default.rmSync(tempDir, { recursive: true, force: true });
-          resolve({ success: true });
-        } catch (extractError) {
-          if (import_fs2.default.existsSync(tempDir)) {
-            import_fs2.default.rmSync(tempDir, { recursive: true, force: true });
-          }
-          resolve({ success: false, error: extractError.message });
-        }
-      } catch (error) {
-        resolve({ success: false, error: error.message });
+    try {
+      if (!import_fs2.default.existsSync(zipPath)) {
+        return {
+          success: false,
+          error: "Backup file not found."
+        };
       }
-    });
+      const tempDir = import_path2.default.join(
+        import_os2.default.tmpdir(),
+        `pos_restore_${Date.now()}`
+      );
+      import_fs2.default.mkdirSync(tempDir, {
+        recursive: true
+      });
+      const zip = new AdmZip2(
+        zipPath
+      );
+      zip.extractAllTo(
+        tempDir,
+        true
+      );
+      const extractedDbPath = import_path2.default.join(
+        tempDir,
+        "shop.db"
+      );
+      if (!import_fs2.default.existsSync(
+        extractedDbPath
+      )) {
+        import_fs2.default.rmSync(tempDir, {
+          recursive: true,
+          force: true
+        });
+        return {
+          success: false,
+          error: "Invalid backup file."
+        };
+      }
+      if (import_fs2.default.existsSync(this.dbPath)) {
+        const backupOldDb = this.dbPath + ".bak";
+        import_fs2.default.copyFileSync(
+          this.dbPath,
+          backupOldDb
+        );
+      }
+      import_fs2.default.copyFileSync(
+        extractedDbPath,
+        this.dbPath
+      );
+      import_fs2.default.rmSync(tempDir, {
+        recursive: true,
+        force: true
+      });
+      console.log(
+        "Database restored successfully"
+      );
+      return {
+        success: true
+      };
+    } catch (error) {
+      console.error(
+        "Restore failed:",
+        error
+      );
+      return {
+        success: false,
+        error: error?.message || "Restore failed"
+      };
+    }
   }
 };
 
 // electron/ipc/backup.ipc.ts
 function setupBackupIpc() {
-  const userDataPath = import_electron5.app.getPath("userData");
+  const userDataPath = import_electron6.app.getPath("userData");
   const backupManager = new BackupManager();
-  const restoreManager = new RestoreManager(userDataPath);
-  import_electron5.ipcMain.handle("backup:create", async () => {
+  const restoreManager = new RestoreManager();
+  import_electron6.ipcMain.handle("backup:create", async () => {
     try {
       const result = await backupManager.createBackup();
       return result;
@@ -458,7 +471,7 @@ function setupBackupIpc() {
       return { success: false, error: error.message };
     }
   });
-  import_electron5.ipcMain.handle("backup:list", async () => {
+  import_electron6.ipcMain.handle("backup:list", async () => {
     try {
       return await backupManager.listBackups();
     } catch (error) {
@@ -466,11 +479,11 @@ function setupBackupIpc() {
       return [];
     }
   });
-  import_electron5.ipcMain.handle("backup:restore", async (event, filePath) => {
+  import_electron6.ipcMain.handle("backup:restore", async (event, filePath) => {
     try {
       let pathToRestore = filePath;
       if (!pathToRestore) {
-        const { canceled, filePaths } = await import_electron5.dialog.showOpenDialog({
+        const { canceled, filePaths } = await import_electron6.dialog.showOpenDialog({
           properties: ["openFile"],
           filters: [{ name: "ZIP Archives", extensions: ["zip"] }]
         });
@@ -490,16 +503,16 @@ function setupBackupIpc() {
 
 // electron/main.ts
 var import_init_db = __toESM(require_init_db());
-var isDev = !import_electron6.app.isPackaged;
+var isDev = !import_electron7.app.isPackaged;
 var mainWindow = null;
-import_electron6.app.disableHardwareAcceleration();
-import_electron6.app.commandLine.appendSwitch("disable-gpu");
-import_electron6.app.commandLine.appendSwitch(
+import_electron7.app.disableHardwareAcceleration();
+import_electron7.app.commandLine.appendSwitch("disable-gpu");
+import_electron7.app.commandLine.appendSwitch(
   "js-flags",
   "--max-old-space-size=4096"
 );
 function createWindow() {
-  mainWindow = new import_electron6.BrowserWindow({
+  mainWindow = new import_electron7.BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 1200,
@@ -551,19 +564,19 @@ function createWindow() {
     mainWindow = null;
   });
 }
-import_electron6.app.whenReady().then(async () => {
+import_electron7.app.whenReady().then(async () => {
   setupPrinterIpc();
   setupBackupIpc();
-  import_electron6.ipcMain.handle(
+  import_electron7.ipcMain.handle(
     "get-app-path",
     () => {
-      return import_electron6.app.getAppPath();
+      return import_electron7.app.getAppPath();
     }
   );
   await (0, import_init_db.initializeDatabase)();
   createWindow();
-  import_electron6.app.on("activate", () => {
-    if (import_electron6.BrowserWindow.getAllWindows().length === 0) {
+  import_electron7.app.on("activate", () => {
+    if (import_electron7.BrowserWindow.getAllWindows().length === 0) {
       createWindow();
     }
   });
@@ -573,9 +586,9 @@ import_electron6.app.whenReady().then(async () => {
     err
   );
 });
-import_electron6.app.on("window-all-closed", () => {
+import_electron7.app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
-    import_electron6.app.quit();
+    import_electron7.app.quit();
   }
 });
 //# sourceMappingURL=main.js.map
