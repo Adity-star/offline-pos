@@ -16,9 +16,10 @@ import {
 } from '@/components/ui/table'
 
 export function BillItemsTable() {
-  const { items, removeItem, updateQuantity, updateSaleRate } = useBillingStore()
+  const { items, removeItem, updateQuantity, updateSaleRate, updateItemDiscountPercent } = useBillingStore()
   const [quantityInputs, setQuantityInputs] = useState<Record<string, string>>({})
   const [priceInputs, setPriceInputs] = useState<Record<string, string>>({})
+  const [discountInputs, setDiscountInputs] = useState<Record<string, string>>({})
 
   if (items.length === 0) {
     return (
@@ -41,92 +42,88 @@ export function BillItemsTable() {
             <TableHead>Item Name</TableHead>
             <TableHead className="text-right">Price</TableHead>
             <TableHead className="text-center w-[160px]">Qty</TableHead>
+            <TableHead className="text-right w-[110px]">Disc %</TableHead>
             <TableHead className="text-right">Total</TableHead>
             <TableHead className="w-[50px]"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {items.map((item, index) => (
-            <TableRow key={item.productId} className="h-16">
-              <TableCell className="font-medium text-muted-foreground">{index + 1}</TableCell>
-              <TableCell>
-                <div className="font-medium">{item.name}</div>
-                <div className="text-xs text-muted-foreground">Max Stock: {item.maxStock}</div>
-              </TableCell>
-              <TableCell className="text-right">
-                <div className="flex items-center justify-end">
-                  <span className="text-muted-foreground mr-1">₹</span>
-                  <Input
-                    type="number"
-                    className="w-24 text-right h-8"
-                    value={priceInputs[item.productId] ?? item.saleRate}
-                    onChange={(e) => {
-                      const value = e.target.value
-                      setPriceInputs(prev => ({ ...prev, [item.productId]: value }))
-                    }}
-                    onBlur={() => {
-                      const inputValue = priceInputs[item.productId]
-                      if (inputValue !== undefined) {
-                        const newPrice = parseFloat(inputValue) || 0
-                        updateSaleRate(item.productId, Math.max(0, newPrice))
-                        setPriceInputs(prev => {
-                          const updated = { ...prev }
-                          delete updated[item.productId]
-                          return updated
-                        })
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        const inputValue = priceInputs[item.productId] ?? String(item.saleRate)
-                        const newPrice = parseFloat(inputValue) || 0
-                        updateSaleRate(item.productId, Math.max(0, newPrice))
-                        setPriceInputs(prev => {
-                          const updated = { ...prev }
-                          delete updated[item.productId]
-                          return updated
-                        })
-                        ;(e.target as HTMLInputElement).blur()
-                      }
-                      e.stopPropagation()
-                    }}
-                    onClick={(e) => (e.target as HTMLInputElement).select()}
-                    min={0}
-                    step={0.01}
-                  />
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center justify-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => updateQuantity(item.productId, item.quantity - 1)}
-                  >
-                    <Minus className="h-3 w-3" />
-                  </Button>
-                  <Input
-                    type="number"
-                    className="w-16 text-center h-8 font-medium"
-                    value={quantityInputs[item.productId] ?? item.quantity}
-                    onChange={(e) => {
-                      const value = e.target.value
-                      setQuantityInputs(prev => ({ ...prev, [item.productId]: value }))
-                    }}
-                    onBlur={() => {
-                      const inputValue = quantityInputs[item.productId]
-                      const newQuantity = parseInt(inputValue) || 1
-                      updateQuantity(item.productId, Math.max(1, newQuantity))
-                      setQuantityInputs(prev => {
-                        const updated = { ...prev }
-                        delete updated[item.productId]
-                        return updated
-                      })
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        const inputValue = quantityInputs[item.productId] ?? String(item.quantity)
+          {items.map((item, index) => {
+            const gross = item.saleRate * item.quantity
+            const discPct = item.discountPercent || 0
+            const itemDiscAmount = (gross * discPct) / 100
+            const itemTotal = gross - itemDiscAmount
+
+            return (
+              <TableRow key={item.productId} className="h-16">
+                <TableCell className="font-medium text-muted-foreground">{index + 1}</TableCell>
+                <TableCell>
+                  <div className="font-medium">{item.name}</div>
+                  <div className="text-xs text-muted-foreground">Max Stock: {item.maxStock}</div>
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex items-center justify-end">
+                    <span className="text-muted-foreground mr-1">₹</span>
+                    <Input
+                      type="number"
+                      className="w-24 text-right h-8"
+                      value={priceInputs[item.productId] ?? item.saleRate}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        setPriceInputs(prev => ({ ...prev, [item.productId]: value }))
+                      }}
+                      onBlur={() => {
+                        const inputValue = priceInputs[item.productId]
+                        if (inputValue !== undefined) {
+                          const newPrice = parseFloat(inputValue) || 0
+                          updateSaleRate(item.productId, Math.max(0, newPrice))
+                          setPriceInputs(prev => {
+                            const updated = { ...prev }
+                            delete updated[item.productId]
+                            return updated
+                          })
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const inputValue = priceInputs[item.productId] ?? String(item.saleRate)
+                          const newPrice = parseFloat(inputValue) || 0
+                          updateSaleRate(item.productId, Math.max(0, newPrice))
+                          setPriceInputs(prev => {
+                            const updated = { ...prev }
+                            delete updated[item.productId]
+                            return updated
+                          })
+                          ;(e.target as HTMLInputElement).blur()
+                        }
+                        e.stopPropagation()
+                      }}
+                      onClick={(e) => (e.target as HTMLInputElement).select()}
+                      min={0}
+                      step={0.01}
+                    />
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center justify-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                    >
+                      <Minus className="h-3 w-3" />
+                    </Button>
+                    <Input
+                      type="number"
+                      className="w-16 text-center h-8 font-medium"
+                      value={quantityInputs[item.productId] ?? item.quantity}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        setQuantityInputs(prev => ({ ...prev, [item.productId]: value }))
+                      }}
+                      onBlur={() => {
+                        const inputValue = quantityInputs[item.productId]
                         const newQuantity = parseInt(inputValue) || 1
                         updateQuantity(item.productId, Math.max(1, newQuantity))
                         setQuantityInputs(prev => {
@@ -134,40 +131,102 @@ export function BillItemsTable() {
                           delete updated[item.productId]
                           return updated
                         })
-                        ;(e.target as HTMLInputElement).blur()
-                      }
-                      e.stopPropagation()
-                    }}
-                    onClick={(e) => (e.target as HTMLInputElement).select()}
-                    min={1}
-                    max={item.maxStock}
-                  />
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const inputValue = quantityInputs[item.productId] ?? String(item.quantity)
+                          const newQuantity = parseInt(inputValue) || 1
+                          updateQuantity(item.productId, Math.max(1, newQuantity))
+                          setQuantityInputs(prev => {
+                            const updated = { ...prev }
+                            delete updated[item.productId]
+                            return updated
+                          })
+                          ;(e.target as HTMLInputElement).blur()
+                        }
+                        e.stopPropagation()
+                      }}
+                      onClick={(e) => (e.target as HTMLInputElement).select()}
+                      min={1}
+                      max={item.maxStock}
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                      disabled={item.quantity >= item.maxStock}
+                    >
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex items-center justify-end">
+                    <Input
+                      type="number"
+                      className="w-20 text-right h-8"
+                      value={discountInputs[item.productId] ?? (item.discountPercent || '')}
+                      placeholder="0"
+                      onChange={(e) => {
+                        const value = e.target.value
+                        setDiscountInputs(prev => ({ ...prev, [item.productId]: value }))
+                      }}
+                      onBlur={() => {
+                        const inputValue = discountInputs[item.productId]
+                        if (inputValue !== undefined) {
+                          const newDisc = parseFloat(inputValue) || 0
+                          updateItemDiscountPercent(item.productId, Math.max(0, Math.min(100, newDisc)))
+                          setDiscountInputs(prev => {
+                            const updated = { ...prev }
+                            delete updated[item.productId]
+                            return updated
+                          })
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const inputValue = discountInputs[item.productId] ?? String(item.discountPercent || 0)
+                          const newDisc = parseFloat(inputValue) || 0
+                          updateItemDiscountPercent(item.productId, Math.max(0, Math.min(100, newDisc)))
+                          setDiscountInputs(prev => {
+                            const updated = { ...prev }
+                            delete updated[item.productId]
+                            return updated
+                          })
+                          ;(e.target as HTMLInputElement).blur()
+                        }
+                        e.stopPropagation()
+                      }}
+                      onClick={(e) => (e.target as HTMLInputElement).select()}
+                      min={0}
+                      max={100}
+                      step={0.01}
+                    />
+                    <span className="text-muted-foreground ml-1">%</span>
+                  </div>
+                </TableCell>
+                <TableCell className="text-right font-bold text-lg">
+                  <div>₹{itemTotal.toFixed(2)}</div>
+                  {itemDiscAmount > 0 && (
+                    <div className="text-xs text-destructive font-normal">
+                      (-₹{itemDiscAmount.toFixed(2)})
+                    </div>
+                  )}
+                </TableCell>
+                <TableCell>
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="icon"
-                    className="h-8 w-8"
-                    onClick={() => updateQuantity(item.productId, item.quantity + 1)}
-                    disabled={item.quantity >= item.maxStock}
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => removeItem(item.productId)}
                   >
-                    <Plus className="h-3 w-3" />
+                    <Trash2 className="h-4 w-4" />
                   </Button>
-                </div>
-              </TableCell>
-              <TableCell className="text-right font-bold text-lg">
-                ₹{(item.saleRate * item.quantity).toFixed(2)}
-              </TableCell>
-              <TableCell>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                  onClick={() => removeItem(item.productId)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
+                </TableCell>
+              </TableRow>
+            )
+          })}
         </TableBody>
       </Table>
     </div>

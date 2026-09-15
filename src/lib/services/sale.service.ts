@@ -20,6 +20,8 @@ export interface CreateSaleInput {
   items: Array<{
     productId: string
     quantity: number
+    saleRate?: number
+    discountPercent?: number
   }>
 
   discountType: DiscountType
@@ -29,6 +31,8 @@ export interface CreateSaleInput {
   labourCost: number
 
   taxPercentage: number
+
+  gstPercentage?: number
 
   paymentMode: PaymentMode
 
@@ -58,7 +62,7 @@ export const saleService = {
     return prisma.$transaction(async (tx) => {
       // 1. Fetch products & validate stock
 
-      const products = await Promise.all(
+      const productsWithItems = await Promise.all(
         input.items.map(async (item) => {
           const product =
             await tx.product.findUnique({
@@ -98,8 +102,9 @@ export const saleService = {
 
           return {
             product,
-
             quantity: item.quantity,
+            saleRate: item.saleRate,
+            discountPercent: item.discountPercent,
           }
         })
       )
@@ -125,6 +130,10 @@ export const saleService = {
 
         sellingPriceAtSale: Prisma.Decimal
 
+        discountPercent: Prisma.Decimal
+
+        discountAmount: Prisma.Decimal
+
         totalPrice: Prisma.Decimal
 
         totalCost: Prisma.Decimal
@@ -135,16 +144,17 @@ export const saleService = {
       for (const {
         product,
         quantity,
-      } of products) {
-        const itemTotal =
-          Number(product.sellingPrice) *
-          quantity
+        saleRate,
+        discountPercent,
+      } of productsWithItems) {
+        const unitPrice = saleRate != null ? Number(saleRate) : Number(product.sellingPrice)
+        const discPct = Math.max(0, Math.min(100, Number(discountPercent) || 0))
+        const itemGross = unitPrice * quantity
+        const itemDiscAmount = (itemGross * discPct) / 100
+        const itemNet = itemGross - itemDiscAmount
+        const itemCost = Number(product.costPrice) * quantity
 
-        const itemCost =
-          Number(product.costPrice) *
-          quantity
-
-        subtotal += itemTotal
+        subtotal += itemNet
 
         totalCost += itemCost
 
@@ -157,33 +167,25 @@ export const saleService = {
 
           quantity,
 
-          unitPrice:
-            product.sellingPrice,
+          unitPrice: new Prisma.Decimal(unitPrice),
 
-          costPriceAtSale:
-            product.costPrice,
+          costPriceAtSale: product.costPrice,
 
-          sellingPriceAtSale:
-            product.sellingPrice,
+          sellingPriceAtSale: new Prisma.Decimal(unitPrice),
 
-          totalPrice:
-            new Prisma.Decimal(
-              itemTotal
-            ),
+          discountPercent: new Prisma.Decimal(discPct),
 
-          totalCost:
-            new Prisma.Decimal(
-              itemCost
-            ),
+          discountAmount: new Prisma.Decimal(itemDiscAmount),
 
-          profit:
-            new Prisma.Decimal(
-              itemTotal - itemCost
-            ),
+          totalPrice: new Prisma.Decimal(itemNet),
+
+          totalCost: new Prisma.Decimal(itemCost),
+
+          profit: new Prisma.Decimal(itemNet - itemCost),
         })
       }
 
-      // 3. Calculate discount
+      // 3. Calculate overall discount
 
       const discountValue =
         Number(input.discountValue) || 0
@@ -201,25 +203,23 @@ export const saleService = {
         discountAmount = discountValue
       }
 
-      // 4. Tax calculation
+      // 4. Tax calculation (GST Cost %)
 
-      const taxPercentage =
-        Number(input.taxPercentage) || 0
+      const gstPercentage =
+        Number(input.gstPercentage ?? input.taxPercentage ?? input.labourCost) || 0
 
-      const taxableAmount =
-        subtotal - discountAmount
+      const taxableAmount = Math.max(0, subtotal - discountAmount)
 
       const taxAmount =
         (taxableAmount *
-          taxPercentage) /
+          gstPercentage) /
         100
 
       // 5. Final totals
 
       const grandTotal =
         taxableAmount +
-        taxAmount +
-        input.labourCost
+        taxAmount
 
       const totalProfit =
         subtotal -
@@ -231,14 +231,6 @@ export const saleService = {
       if (input.paidAmount < 0) {
         throw new Error(
           'Paid amount cannot be negative'
-        )
-      }
-
-      if (
-        input.paidAmount > grandTotal
-      ) {
-        throw new Error(
-          'Paid amount cannot exceed grand total'
         )
       }
 
@@ -337,6 +329,11 @@ export const saleService = {
                 taxAmount
               ),
 
+            gstPercentage:
+              new Prisma.Decimal(
+                gstPercentage
+              ),
+
             grandTotal:
               new Prisma.Decimal(
                 grandTotal
@@ -377,12 +374,24 @@ export const saleService = {
           },
         })
 
+      // Transform to include customerName for easier frontend access
+      return {
+        ...sale,
+        customerName: sale.customer?.name || 'Walk-in Customer',
+      }
+
+      // Transform to include customerName for easier frontend access
+      return {
+        ...sale,
+        customerName: sale.customer?.name || 'Walk-in Customer',
+      }
+
       // 9. Deduct stock & create logs
 
       for (const {
         product,
         quantity,
-      } of products) {
+      } of productsWithItems) {
         const newStock =
           product.currentStock -
           quantity
@@ -426,7 +435,7 @@ export const saleService = {
       // 10. Update customer due
 
       if (
-        input.customerId &&
+        input.customerId != null &&
         dueAmount > 0
       ) {
         await tx.customer.update({
@@ -541,8 +550,14 @@ export const saleService = {
         }),
       ])
 
+    // Transform sales to include customerName for easier frontend access
+    const transformedSales = sales.map(sale => ({
+      ...sale,
+      customerName: sale.customer?.name || 'Walk-in Customer',
+    }))
+
     return {
-      sales,
+      sales: transformedSales,
 
       total,
 
@@ -557,7 +572,7 @@ export const saleService = {
   },
 
   async getById(id: string) {
-    return prisma.sale.findUnique({
+    const sale = await prisma.sale.findUnique({
       where: {
         id,
       },
@@ -576,6 +591,14 @@ export const saleService = {
         payments: true,
       },
     })
+
+    if (!sale) return null
+
+    // Transform to include customerName for easier frontend access
+    return {
+      ...sale,
+      customerName: sale.customer?.name || 'Walk-in Customer',
+    }
   },
 
   async delete(id: string) {

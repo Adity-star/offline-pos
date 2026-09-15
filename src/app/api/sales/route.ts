@@ -169,11 +169,17 @@ export async function POST(request: NextRequest) {
         (item: {
           productId: string
           quantity: number
+          saleRate?: number
+          discountPercent?: number
         }) => ({
           productId: item.productId,
 
           quantity:
             Number(item.quantity) || 0,
+
+          saleRate: item.saleRate != null ? Number(item.saleRate) : undefined,
+
+          discountPercent: item.discountPercent != null ? Number(item.discountPercent) : 0,
         })
       ),
 
@@ -188,9 +194,10 @@ export async function POST(request: NextRequest) {
         Number(body.labourCost) || 0,
 
       taxPercentage:
-        Number.isFinite(taxPercentage)
-          ? taxPercentage
-          : 0,
+        Number(body.gstPercentage ?? body.labourCost ?? taxPercentage) || 0,
+
+      gstPercentage:
+        Number(body.gstPercentage ?? body.labourCost ?? taxPercentage) || 0,
 
       paymentMode: mapPaymentMode(
         body.paymentMode

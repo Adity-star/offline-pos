@@ -37,6 +37,11 @@ export const settingsService = {
     printTemplate: string
     allowNegativeStock: boolean
     logoPath: string | null
+    bankName: string | null
+    bankAccountName: string | null
+    bankAccountNumber: string | null
+    bankIfsc: string | null
+    bankBranch: string | null
   }>) {
     const settings = await this.get()
 
@@ -53,6 +58,11 @@ export const settingsService = {
     if (data.thermalPaperWidth !== undefined) updateData.thermalPaperWidth = data.thermalPaperWidth
     if (data.allowNegativeStock !== undefined) updateData.allowNegativeStock = data.allowNegativeStock
     if (data.logoPath !== undefined) updateData.logoPath = data.logoPath
+    if (data.bankName !== undefined) updateData.bankName = data.bankName
+    if (data.bankAccountName !== undefined) updateData.bankAccountName = data.bankAccountName
+    if (data.bankAccountNumber !== undefined) updateData.bankAccountNumber = data.bankAccountNumber
+    if (data.bankIfsc !== undefined) updateData.bankIfsc = data.bankIfsc
+    if (data.bankBranch !== undefined) updateData.bankBranch = data.bankBranch
 
     return prisma.setting.update({
       where: { id: settings.id },

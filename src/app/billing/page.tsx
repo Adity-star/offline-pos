@@ -22,6 +22,8 @@ export default function BillingPage() {
     discountValue, 
     discountType, 
     labourCost,
+    amountReceived,
+    paymentMode,
     getGrandTotal,
   } = useBillingStore()
 
@@ -97,17 +99,24 @@ export default function BillingPage() {
     try {
       setIsSubmitting(true)
       
+      const grandTotal = getGrandTotal()
+      // If amountReceived is null it means full payment
+      const effectivePaidAmount = amountReceived === null ? grandTotal : amountReceived
+
       const payload = {
         customerId: customer.id ?? null,
         items: items.map((i) => ({
           productId: i.productId,
           quantity: i.quantity,
+          saleRate: i.saleRate,
+          discountPercent: i.discountPercent || 0,
         })),
         discountType,
         discountValue,
         labourCost,
-        paymentMode: 'CASH',
-        paidAmount: getGrandTotal(),
+        gstPercentage: labourCost,
+        paymentMode: paymentMode,
+        paidAmount: effectivePaidAmount,
       }
 
       const res = await fetch('/api/sales', {
@@ -140,7 +149,7 @@ export default function BillingPage() {
     } finally {
       setIsSubmitting(false)
     }
-  }, [items, customer, discountType, discountValue, labourCost, getGrandTotal, clearCart])
+  }, [items, customer, discountType, discountValue, labourCost, amountReceived, paymentMode, getGrandTotal, clearCart])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

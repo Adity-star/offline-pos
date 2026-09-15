@@ -83,6 +83,7 @@ model Sale {
   discountAmount Decimal
   labourCost     Decimal    @default(0)
   taxAmount      Decimal    @default(0)
+  gstPercentage  Decimal    @default(0)
   grandTotal     Decimal
   totalProfit    Decimal
   paidAmount     Decimal
@@ -113,6 +114,8 @@ model SaleItem {
   unitPrice          Decimal
   costPriceAtSale    Decimal
   sellingPriceAtSale Decimal
+  discountPercent    Decimal  @default(0)
+  discountAmount     Decimal  @default(0)
   totalPrice         Decimal
   totalCost          Decimal
   profit             Decimal
@@ -167,6 +170,11 @@ model Setting {
   thermalPaperWidth  String   @default("80mm")
   allowNegativeStock Boolean  @default(false)
   logoPath           String?
+  bankName           String?
+  bankAccountName    String?
+  bankAccountNumber  String?
+  bankIfsc           String?
+  bankBranch         String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }
@@ -178,3 +186,4 @@ model Backup {
   fileSize  String
   createdAt DateTime @default(now())
 }
+

@@ -29,6 +29,12 @@ const settingsSchema = z.object({
   currencySymbol: z.string().min(1, 'Symbol required'),
   printTemplate: z.enum(['THERMAL_80MM', 'A4']),
   allowNegativeStock: z.boolean(),
+  
+  bankName: z.string().optional(),
+  bankAccountName: z.string().optional(),
+  bankAccountNumber: z.string().optional(),
+  bankIfsc: z.string().optional(),
+  bankBranch: z.string().optional(),
 })
 
 type SettingsFormValues = z.infer<typeof settingsSchema>
@@ -53,6 +59,11 @@ export default function SettingsPage() {
       currencySymbol: '₹',
       printTemplate: 'THERMAL_80MM',
       allowNegativeStock: false,
+      bankName: '',
+      bankAccountName: '',
+      bankAccountNumber: '',
+      bankIfsc: '',
+      bankBranch: '',
     }
   })
 
@@ -79,6 +90,11 @@ export default function SettingsPage() {
         currencySymbol: settings.currencySymbol || '₹',
         printTemplate: settings.printTemplate as any || 'THERMAL_80MM',
         allowNegativeStock: settings.allowNegativeStock || false,
+        bankName: settings.bankName || '',
+        bankAccountName: settings.bankAccountName || '',
+        bankAccountNumber: settings.bankAccountNumber || '',
+        bankIfsc: settings.bankIfsc || '',
+        bankBranch: settings.bankBranch || '',
       })
     }
   }, [settings, form])
@@ -192,6 +208,41 @@ export default function SettingsPage() {
                       />
                       Allow Billing Below 0 Stock
                     </label>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center text-lg">
+                  <Server className="mr-2 h-5 w-5 text-blue-600" /> Bank Details
+                </CardTitle>
+                <CardDescription>
+                  Bank details will be printed on A4 invoices for customer payments.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Bank Name</label>
+                    <Input {...form.register('bankName')} placeholder="e.g. State Bank of India" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Account Name</label>
+                    <Input {...form.register('bankAccountName')} placeholder="Account holder name" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Account Number</label>
+                    <Input {...form.register('bankAccountNumber')} placeholder="Bank account number" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">IFSC Code</label>
+                    <Input {...form.register('bankIfsc')} placeholder="e.g. SBIN0001234" />
+                  </div>
+                  <div className="space-y-2 col-span-2">
+                    <label className="text-sm font-medium">Branch</label>
+                    <Input {...form.register('bankBranch')} placeholder="Bank branch name" />
                   </div>
                 </div>
               </CardContent>
