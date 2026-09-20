@@ -374,87 +374,46 @@ export const saleService = {
           },
         })
 
-      // Transform to include customerName for easier frontend access
-      return {
-        ...sale,
-        customerName: sale.customer?.name || 'Walk-in Customer',
-      }
-
-      // Transform to include customerName for easier frontend access
-      return {
-        ...sale,
-        customerName: sale.customer?.name || 'Walk-in Customer',
-      }
-
       // 9. Deduct stock & create logs
-
-      for (const {
-        product,
-        quantity,
-      } of productsWithItems) {
-        const newStock =
-          product.currentStock -
-          quantity
+      for (const { product, quantity } of productsWithItems) {
+        const newStock = product.currentStock - quantity
 
         await tx.product.update({
-          where: {
-            id: product.id,
-          },
-
-          data: {
-            currentStock: newStock,
-          },
+          where: { id: product.id },
+          data: { currentStock: newStock },
         })
 
         await tx.inventoryLog.create({
           data: {
             productId: product.id,
-
             userId: input.userId,
-
-            actionType:
-              InventoryActionTypes.SALE,
-
-            previousStock:
-              product.currentStock,
-
-            changedQuantity:
-              -quantity,
-
+            actionType: InventoryActionTypes.SALE,
+            previousStock: product.currentStock,
+            changedQuantity: -quantity,
             newStock,
-
             referenceType: 'SALE',
-
             referenceId: sale.id,
-
             reason: `Sale: ${invoiceNumber}`,
           },
         })
       }
 
       // 10. Update customer due
-
-      if (
-        input.customerId != null &&
-        dueAmount > 0
-      ) {
+      if (input.customerId != null && dueAmount > 0) {
         await tx.customer.update({
-          where: {
-            id: input.customerId,
-          },
-
+          where: { id: input.customerId },
           data: {
             pendingAmount: {
-              increment:
-                new Prisma.Decimal(
-                  dueAmount
-                ),
+              increment: new Prisma.Decimal(dueAmount),
             },
           },
         })
       }
 
-      return sale
+      return {
+        ...sale,
+        customerName: sale.customer?.name || 'Walk-in Customer',
+      }
     })
   },
 

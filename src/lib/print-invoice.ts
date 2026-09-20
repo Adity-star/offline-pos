@@ -131,8 +131,8 @@ export interface PrintableSale {
   subtotal: number
 
   discountType?:
-    | 'PERCENTAGE'
-    | 'FLAT'
+  | 'PERCENTAGE'
+  | 'FLAT'
 
   discountValue?: number
 
@@ -451,27 +451,37 @@ export function normalizeSaleForPrint(
     ) as Array<Record<string, unknown>>
 
 
-  // ==========================================================================
+  // Sale-level GST percentage stored in DB (fallback for items that have none)
+  const saleGstPercent =
+    sale.gstPercentage != null
+      ? Number(sale.gstPercentage)
+      : sale.taxPercentage != null
+        ? Number(sale.taxPercentage)
+        : undefined
+
+
+  // ============
+  // ==============================================================
   // CUSTOMER
   // ==========================================================================
 
   const customer =
     sale.customer as
-      | {
-          name?: string
-          mobile?: string
-          phone?: string
-          address?: string
-          gstNumber?: string
-          gstin?: string
-          panNumber?: string
-          pan?: string
-          state?: string
-          stateName?: string
-          stateCode?: string
-          fssaiNumber?: string
-        }
-      | undefined
+    | {
+      name?: string
+      mobile?: string
+      phone?: string
+      address?: string
+      gstNumber?: string
+      gstin?: string
+      panNumber?: string
+      pan?: string
+      state?: string
+      stateName?: string
+      stateCode?: string
+      fssaiNumber?: string
+    }
+    | undefined
 
 
   // ==========================================================================
@@ -618,7 +628,7 @@ export function normalizeSaleForPrint(
 
     discountType:
       sale.discountType === 'PERCENTAGE' ||
-      sale.discountType === 'FLAT'
+        sale.discountType === 'FLAT'
         ? sale.discountType
         : undefined,
 
@@ -727,14 +737,14 @@ export function normalizeSaleForPrint(
 
           const product =
             item.product as
-              | {
-                  name?: string
-                  sku?: string
-                  hsn?: string
-                  mrp?: number
-                  listingPrice?: number
-                }
-              | undefined
+            | {
+              name?: string
+              sku?: string
+              hsn?: string
+              mrp?: number
+              listingPrice?: number
+            }
+            | undefined
 
 
           // ================================================================
@@ -794,14 +804,14 @@ export function normalizeSaleForPrint(
 
           const calculatedRate =
             listingPrice != null &&
-            pcs > 0
+              pcs > 0
               ? listingPrice / pcs
               : Number(
-                  item.unitPrice ??
-                  item.sellingPriceAtSale ??
-                  item.saleRate ??
-                  0
-                )
+                item.unitPrice ??
+                item.sellingPriceAtSale ??
+                item.saleRate ??
+                0
+              )
 
 
           // ================================================================
@@ -857,12 +867,13 @@ export function normalizeSaleForPrint(
 
           // ================================================================
           // GST
+          // Priority: item.gstPercent → sale-level gstPercentage
           // ================================================================
 
           const gstPercent =
             item.gstPercent != null
               ? Number(item.gstPercent)
-              : undefined
+              : saleGstPercent
 
 
           // ================================================================
@@ -1050,11 +1061,11 @@ export async function printInvoiceHtml(
     const result =
       template === 'A4'
         ? await window.electron.printA4(
-            html
-          )
+          html
+        )
         : await window.electron.printThermal(
-            html
-          )
+          html
+        )
 
 
     if (!result.success) {
@@ -1087,13 +1098,13 @@ export function buildInvoiceHtml(
 
   return settings.printTemplate === 'A4'
     ? generateGSTInvoiceHTML(
-        sale,
-        settings
-      )
+      sale,
+      settings
+    )
     : generateThermalReceiptHTML(
-        sale,
-        settings
-      )
+      sale,
+      settings
+    )
 }
 
 
@@ -1179,6 +1190,33 @@ export async function printSaleById(
       settings.error ??
       'Failed to load store settings for printing'
     )
+  }
+
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // EMBED QR CODE AS BASE64
+  //
+  // The HTML is loaded via data:text/html in Electron, which means relative
+  // paths like /qrcode.jpg cannot be resolved. We fetch the QR image here
+  // (while we still have a proper HTTP origin) and embed it as a data URL.
+  // This works for both the Electron main process and the browser preview.
+  // ──────────────────────────────────────────────────────────────────────────
+
+  if (!settings.qrCodeDataUrl) {
+    try {
+      const qrRes = await fetch('/qrcode.jpg')
+      if (qrRes.ok) {
+        const blob = await qrRes.blob()
+        const dataUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader()
+          reader.onloadend = () => resolve(reader.result as string)
+          reader.readAsDataURL(blob)
+        })
+        settings.qrCodeDataUrl = dataUrl
+      }
+    } catch {
+      // QR fetch failed – invoice will render without QR code
+    }
   }
 
 
