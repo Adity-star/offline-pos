@@ -7,10 +7,11 @@
     "dev": "concurrently \"npm run next-dev\" \"npm run electron-dev\"",
     "next-dev": "next dev",
     "electron-dev": "wait-on tcp:3000 && npm run build:electron && cross-env NODE_ENV=development electron .",
-    "build:electron": "tsup electron/main.ts electron/preload.ts --format cjs --out-dir dist-electron --external electron",
+    "build:electron": "tsup electron/main.ts electron/preload.ts --format cjs --out-dir dist-electron --external electron --external @prisma/client",
     "electron-build": "electron-builder",
     "build": "next build && npm run build:electron",
     "dist": "npm run build && electron-builder",
+    "postinstall": "prisma generate",
     "start": "next start",
     "lint": "eslint",
     "prisma": "tsx prisma/seed.ts"
@@ -65,33 +66,62 @@
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
     "tsup": "^8.5.1",
-    "typescript": "^5"
+    "typescript": "^5",
+    "prisma": "5.22.0"
   },
-  "buildConfig": {
+  "build": {
     "appId": "com.aksoftware.pos",
     "productName": "AK Software",
     "directories": {
       "output": "release"
     },
+    "asar": true,
     "files": [
       "dist-electron/**/*",
-      ".next/standalone/**/*",
-      ".next/static/**/*",
-      "public/**/*",
       "prisma/**/*",
       "database/**/*",
-      "package.json"
+      "package.json",
+      "!.node_modules/@prisma/client{,/**/*}",
+      "!.node_modules/.prisma{,/**/*}",
+      "!.node_modules/@prisma/engines{,/**/*}"
     ],
     "extraResources": [
       {
+        "from": ".next/standalone",
+        "to": "next-app"
+      },
+      {
+        "from": "database/shop-template.db",
+        "to": "database/shop-template.db"
+      },
+      {
+        "from": ".next/static",
+        "to": "next-app/.next/static"
+      },
+      {
+        "from": "public",
+        "to": "next-app/public"
+      },
+      {
         "from": "database",
         "to": "database"
+      },
+      {
+        "from": "node_modules/.prisma",
+        "to": "node_modules/.prisma"
+      },
+      {
+        "from": "node_modules/@prisma/client",
+        "to": "node_modules/@prisma/client"
+      },
+      {
+        "from": "node_modules/@prisma/engines",
+        "to": "node_modules/@prisma/engines"
       }
     ],
     "asarUnpack": [
-      "**/*.node",
-      "node_modules/.prisma/**/*",
-      "node_modules/@prisma/**/*"
+      "node_modules/sqlite3/**/*",
+      "**/*.node"
     ],
     "win": {
       "target": "nsis"

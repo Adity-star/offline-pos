@@ -5,57 +5,76 @@ import fs from 'fs'
 
 import { PrismaClient } from '@prisma/client'
 
-function getDatabasePath() {
-  // ELECTRON PRODUCTION
-  if (process.env.APPDATA) {
-    const appDir = path.join(
-      process.env.APPDATA,
-      'ak-software'
+function getDatabasePath(): string {
+  // DEVELOPMENT
+  if (process.env.NODE_ENV !== 'production') {
+    const databaseDir = path.join(
+      process.cwd(),
+      'database'
     )
 
-    // CREATE DIRECTORY
-    if (!fs.existsSync(appDir)) {
-      fs.mkdirSync(appDir, {
+    if (!fs.existsSync(databaseDir)) {
+      fs.mkdirSync(databaseDir, {
         recursive: true,
       })
     }
 
     return path.join(
-      appDir,
+      databaseDir,
       'shop.db'
     )
   }
 
-  // DEV FALLBACK
+  // PRODUCTION
+  const appData =
+    process.env.APPDATA ||
+    path.join(
+      process.env.USERPROFILE || process.cwd(),
+      'AppData',
+      'Roaming'
+    )
+
+  const appDir = path.join(
+    appData,
+    'ak-software'
+  )
+
+  if (!fs.existsSync(appDir)) {
+    fs.mkdirSync(appDir, {
+      recursive: true,
+    })
+  }
+
   return path.join(
-    process.cwd(),
-    'database',
+    appDir,
     'shop.db'
   )
 }
 
 const dbPath = getDatabasePath()
 
-console.log('Using database:', dbPath)
+const databaseUrl =
+  process.platform === 'win32'
+    ? `file:${dbPath.replace(/\\/g, '/')}`
+    : `file:${dbPath}`
 
-// IMPORTANT
-process.env.DATABASE_URL =
-  `file:${dbPath}`
+console.log('NODE_ENV:', process.env.NODE_ENV)
+console.log('Using database:', dbPath)
+console.log('Database URL:', databaseUrl)
 
 const globalForPrisma =
   globalThis as unknown as {
     prisma: PrismaClient | undefined
   }
 
-if (!fs.existsSync(dbPath)) {
-  fs.writeFileSync(dbPath, '')
-}
-
-process.env.DATABASE_URL = `file:${dbPath}`
-
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
+    datasources: {
+      db: {
+        url: databaseUrl,
+      },
+    },
     log: ['error'],
   })
 
