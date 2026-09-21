@@ -13,6 +13,11 @@ export interface AppSettings {
   currencySymbol: string
   printTemplate: 'THERMAL_80MM' | 'A4'
   allowNegativeStock: boolean
+  bankName?: string
+  bankAccountName?: string
+  bankAccountNumber?: string
+  bankIfsc?: string
+  bankBranch?: string
 }
 
 interface SettingsState {

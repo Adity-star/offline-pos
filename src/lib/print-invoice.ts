@@ -802,16 +802,13 @@ export function normalizeSaleForPrint(
           // Do NOT use saleRate here for the GST invoice rate.
           // ================================================================
 
-          const calculatedRate =
-            listingPrice != null &&
-              pcs > 0
-              ? listingPrice / pcs
-              : Number(
-                item.unitPrice ??
-                item.sellingPriceAtSale ??
-                item.saleRate ??
-                0
-              )
+          const calculatedRate = Number(
+            item.saleRate ??
+            item.unitPrice ??
+            item.sellingPriceAtSale ??
+            listingPrice ??
+            0
+          )
 
 
           // ================================================================

@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
@@ -191,6 +192,10 @@ export const useBillingStore = create<BillingState>()(
     }),
     {
       name: 'billing-cart-storage',
+      // skipHydration prevents the store from reading localStorage during SSR,
+      // which would cause a server/client HTML mismatch (hydration error).
+      // We manually call rehydrate() inside a useEffect in useHydrateBillingStore below.
+      skipHydration: true,
       partialize: (state) => ({
         items: state.items,
         customer: state.customer,
@@ -215,3 +220,17 @@ export const useBillingStore = create<BillingState>()(
     }
   )
 )
+
+/**
+ * Call this hook once near the top of any layout/page that uses useBillingStore.
+ * It triggers the Zustand persist rehydration from localStorage on the client
+ * only (inside useEffect), preventing SSR hydration mismatches.
+ */
+export function useHydrateBillingStore() {
+  useEffect(() => {
+    // Manually rehydrate the persist store from localStorage after mount.
+    // Because skipHydration: true is set, this is the ONLY place rehydration happens,
+    // ensuring the server and client render the same initial HTML.
+    useBillingStore.persist.rehydrate()
+  }, [])
+}

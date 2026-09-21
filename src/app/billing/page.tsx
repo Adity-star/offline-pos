@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { useBillingStore } from '@/store/billing.store'
+import { useBillingStore, useHydrateBillingStore } from '@/store/billing.store'
 import { printSaleById } from '@/lib/print-invoice'
 
 import { ProductSearch } from '@/components/billing/product-search'
@@ -14,6 +14,11 @@ import { Search } from 'lucide-react'
 import { useDebounce } from '@/hooks/use-debounce'
 
 export default function BillingPage() {
+  // Rehydrate the persisted Zustand store from localStorage on the client only.
+  // This prevents SSR/client HTML mismatch (hydration error) caused by
+  // Zustand's persist middleware reading localStorage before React hydrates.
+  useHydrateBillingStore()
+
   const { 
     clearCart, 
     setCustomer, 

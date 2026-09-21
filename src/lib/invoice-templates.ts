@@ -6,9 +6,9 @@ import type { PrintableSale, PrintableSettings } from '@/lib/print-invoice'
 // GST Invoice:
 // - A4 Landscape
 // - 12 product columns
-// - LS = Listing Price
-// - Rate = LS / PCS
-// - Gross Amount = LS
+// - LP = Listing Price (Product Price - Discount)
+// - Rate = LP / PCS
+// - Gross Amount = LP
 // - Scheme % retained
 // - Agency + Customer details in header
 // - Tax + Bank + Amount Summary at bottom
@@ -177,51 +177,22 @@ function numberToIndianWords(amount: number): string {
 // THERMAL RECEIPT
 // ============================================================================
 
-function renderThermalLineItems(
-  sale: PrintableSale
-): string {
+function renderThermalLineItems(sale: PrintableSale): string {
   return sale.items
     .map((item) => {
-      const name =
-        item.product?.name ??
-        item.productName ??
-        'Item'
-
+      const name = item.product?.name ?? item.productName ?? 'Item'
       const sku = item.product?.sku ?? item.sku ?? ''
-
-      // Use listing price if available, otherwise use sale rate
       const listingPrice = Number(item.listingPrice ?? item.mrp ?? 0)
       const rate = Number(item.saleRate ?? item.unitPrice ?? listingPrice)
-
       const qty = item.quantity
       const gross = rate * qty
-
-      const lineTotal =
-        Number(
-          item.totalPrice ??
-          gross
-        )
-
-      return `
-        <tr>
-          <td class="item-name">
-            <div style="font-weight: 600;">${name}</div>
-            ${sku ? `<div style="font-size: 9px; color: #666;">SKU: ${sku}</div>` : ''}
-          </td>
-
-          <td class="text-center">
-            ${qty}
-          </td>
-
-          <td class="text-right">
-            ${rate.toFixed(2)}
-          </td>
-
-          <td class="text-right">
-            ${lineTotal.toFixed(2)}
-          </td>
-        </tr>
-      `
+      const lineTotal = Number(item.totalPrice ?? gross)
+      return `<tr>
+        <td class="item-name"><div style="font-weight:600">${name}</div>${sku ? `<div style="font-size:9px;color:#666">SKU: ${sku}</div>` : ''}</td>
+        <td class="text-center">${qty}</td>
+        <td class="text-right">${rate.toFixed(2)}</td>
+        <td class="text-right">${lineTotal.toFixed(2)}</td>
+      </tr>`
     })
     .join('')
 }
@@ -231,389 +202,96 @@ export const generateThermalReceiptHTML = (
   sale: PrintableSale,
   settings: PrintableSettings
 ) => {
+  const symbol = settings.currencySymbol || '₹'
 
-  const symbol =
-    settings.currencySymbol || '₹'
-
-
-  // Calculate accurate totals from items
   let calculatedSubtotal = 0
-
   sale.items.forEach(item => {
     const rate = Number(item.saleRate ?? item.unitPrice ?? item.listingPrice ?? 0)
-    const qty = item.quantity
-    const gross = rate * qty
-
-    calculatedSubtotal += gross
+    calculatedSubtotal += rate * item.quantity
   })
 
   const subtotal = Number(sale.subtotal) || calculatedSubtotal
   const gstAmount = Number(sale.taxAmount) || Number(sale.labourCost) || 0
   const grandTotal = Number(sale.grandTotal) || (subtotal + gstAmount)
 
-
-  return `
-<!DOCTYPE html>
-
+  return `<!DOCTYPE html>
 <html>
-
 <head>
-
-  <meta charset="utf-8">
-
-  <title>
-    Receipt - ${sale.invoiceNumber}
-  </title>
-
-
-  <style>
-
-    body {
-      font-family:
-        'Helvetica Neue',
-        Helvetica,
-        Arial,
-        sans-serif;
-
-      width: 80mm;
-
-      margin: 0;
-
-      padding: 5mm;
-
-      font-size: 13px;
-
-      line-height: 1.5;
-
-      color: #000;
-    }
-
-
-    .text-center {
-      text-align: center;
-    }
-
-
-    .text-right {
-      text-align: right;
-    }
-
-
-    .border-bottom {
-      border-bottom: 2px dashed #000;
-
-      margin-bottom: 5px;
-
-      padding-bottom: 5px;
-    }
-
-
-    .store-name {
-      font-size: 18px;
-
-      font-weight: bold;
-
-      text-transform: uppercase;
-
-      margin-bottom: 2px;
-    }
-
-
-    table {
-      width: 100%;
-
-      border-collapse: collapse;
-
-      margin: 10px 0;
-    }
-
-
-    th,
-    td {
-      padding: 4px 0;
-
-      text-align: left;
-    }
-
-
-    th {
-      border-bottom: 2px solid #000;
-      font-weight: bold;
-      font-size: 11px;
-      text-transform: uppercase;
-    }
-
-
-    .item-name {
-      max-width: 40mm;
-
-      word-wrap: break-word;
-    }
-
-
-    .totals-row {
-      display: flex;
-
-      justify-content: space-between;
-
-      margin-bottom: 3px;
-    }
-
-
-    .grand-total {
-      font-size: 18px;
-
-      font-weight: bold;
-
-      margin-top: 5px;
-
-      padding-top: 5px;
-
-      border-top: 2px dashed #000;
-    }
-
-
-    .footer {
-      font-size: 10px;
-
-      margin-top: 15px;
-
-      text-align: center;
-    }
-
-
-    .qr-code {
-      width: 60px;
-      height: 60px;
-      margin: 5px auto;
-      display: block;
-      border: 1px solid #000;
-    }
-
-  </style>
-
+<meta charset="utf-8">
+<title>Receipt - ${sale.invoiceNumber}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; width: 80mm; margin: 0 auto; padding: 4mm 5mm; font-size: 12px; line-height: 1.4; color: #000; }
+  .text-center { text-align: center; }
+  .text-right { text-align: right; }
+  .sep { border-bottom: 1px dashed #000; margin: 4px 0; }
+  .store-name { font-size: 16px; font-weight: bold; text-transform: uppercase; margin-bottom: 1px; }
+  .info-sm { font-size: 10px; }
+  table { width: 100%; border-collapse: collapse; margin: 4px 0; }
+  th, td { padding: 2px 0; text-align: left; font-size: 11px; }
+  th { border-top: 1px solid #000; border-bottom: 1px solid #000; font-weight: bold; font-size: 10px; text-transform: uppercase; }
+  .item-name { max-width: 38mm; word-break: break-word; }
+  .totals-row { display: flex; justify-content: space-between; margin: 2px 0; font-size: 11px; }
+  .grand-total { font-size: 16px; font-weight: bold; padding-top: 4px; border-top: 1px dashed #000; margin-top: 2px; }
+  .footer { font-size: 10px; text-align: center; margin-top: 8px; }
+  .qr-code { width: 56px; height: 56px; margin: 4px auto; display: block; border: 1px solid #000; }
+</style>
 </head>
-
-
 <body>
 
+<div class="text-center sep">
+  <div class="store-name">${settings.storeName || 'MY STORE'}</div>
+  ${settings.storeAddress ? `<div class="info-sm">${settings.storeAddress}</div>` : ''}
+  ${settings.storeCity ? `<div class="info-sm">${settings.storeCity}</div>` : ''}
+  ${settings.storeMobile ? `<div class="info-sm">Ph: ${settings.storeMobile}</div>` : ''}
+  ${settings.gstNumber ? `<div class="info-sm">GSTIN: ${settings.gstNumber}</div>` : ''}
+  <img src="./qrcode.jpg" alt="Payment QR Code" class="qr-code" />
+  <div style="font-size:8px;margin-top:1px">Scan to Pay</div>
+</div>
 
-  <div class="text-center border-bottom">
-
-    <div class="store-name">
-      ${settings.storeName || 'MY STORE'}
-    </div>
-
-    ${settings.storeAddress
-      ? `<div style="font-size: 10px;">${settings.storeAddress}</div>`
-      : ''
-    }
-
-    ${settings.storeCity
-      ? `<div style="font-size: 10px;">${settings.storeCity}</div>`
-      : ''
-    }
-
-    ${settings.storeMobile
-      ? `<div style="font-size: 10px;">Ph: ${settings.storeMobile}</div>`
-      : ''
-    }
-
-    ${settings.gstNumber
-      ? `<div style="font-size: 10px;">GSTIN: ${settings.gstNumber}</div>`
-      : ''
-    }
-
-    <img src="./qrcode.jpg" alt="Payment QR Code" class="qr-code" />
-    <div style="font-size: 8px; margin-top: 2px;">Scan to Pay</div>
-
+<div class="sep" style="padding-bottom:4px">
+  <div style="display:flex;justify-content:space-between">
+    <span><strong>Date:</strong> ${new Date(sale.createdAt).toLocaleString('en-IN')}</span>
+    <span><strong>Bill#:</strong> ${sale.invoiceNumber}</span>
   </div>
+  <div><strong>Customer:</strong> ${sale.customerName || 'Walk-in'}</div>
+  ${sale.customerMobile ? `<div><strong>Mobile:</strong> ${sale.customerMobile}</div>` : ''}
+</div>
 
+<table>
+  <thead>
+    <tr>
+      <th style="width:45%">Item</th>
+      <th class="text-center" style="width:13%">Qty</th>
+      <th class="text-right" style="width:21%">Rate</th>
+      <th class="text-right" style="width:21%">Total</th>
+    </tr>
+  </thead>
+  <tbody>${renderThermalLineItems(sale)}</tbody>
+</table>
 
-  <div class="border-bottom">
+<div class="sep" style="padding-top:2px">
+  <div class="totals-row"><span>Subtotal:</span><span>${formatMoney(subtotal, symbol)}</span></div>
+  ${gstAmount > 0 ? `<div class="totals-row"><span>GST:</span><span>+${formatMoney(gstAmount, symbol)}</span></div>` : ''}
+  <div class="totals-row grand-total"><span>Grand Total:</span><span>${formatMoney(grandTotal, symbol)}</span></div>
+  ${sale.paymentStatus && sale.paymentStatus !== 'PAID' ? `<div class="totals-row" style="color:#dc2626"><span>Status:</span><span>${sale.paymentStatus}</span></div>` : ''}
+</div>
 
-    <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
-      <div>
-        <strong>Date:</strong>
-        ${new Date(sale.createdAt).toLocaleString('en-IN')}
-      </div>
-      <div>
-        <strong>Bill No:</strong>
-        ${sale.invoiceNumber}
-      </div>
-    </div>
-
-    <div>
-      <strong>Customer:</strong>
-      ${sale.customerName || 'Walk-in'}
-    </div>
-
-    ${sale.customerMobile
-      ? `
-          <div>
-            <strong>Mobile:</strong>
-            ${sale.customerMobile}
-          </div>
-        `
-      : ''
-    }
-
-  </div>
-
-
-  <table>
-
-    <thead>
-
-      <tr>
-
-        <th style="width: 45%;">
-          Item
-        </th>
-
-        <th class="text-center" style="width: 15%;">
-          Qty
-        </th>
-
-        <th class="text-right" style="width: 20%;">
-          Rate
-        </th>
-
-        <th class="text-right" style="width: 20%;">
-          Total
-        </th>
-
-      </tr>
-
-    </thead>
-
-
-    <tbody>
-
-      ${renderThermalLineItems(sale)}
-
-    </tbody>
-
-  </table>
-
-
-  <div class="border-bottom text-right">
-
-    <div class="totals-row">
-
-      <span>
-        Subtotal:
-      </span>
-
-      <span>
-        ${formatMoney(subtotal, symbol)}
-      </span>
-
-    </div>
-
-
-
-
-
-    ${gstAmount > 0
-      ? `
-          <div class="totals-row">
-
-            <span>
-              GST:
-            </span>
-
-            <span>
-              +${formatMoney(gstAmount, symbol)}
-            </span>
-
-          </div>
-        `
-      : ''
-    }
-
-
-    <div class="totals-row grand-total">
-
-      <span>
-        Grand Total:
-      </span>
-
-      <span>
-        ${formatMoney(grandTotal, symbol)}
-      </span>
-
-    </div>
-
-    ${sale.paymentStatus && sale.paymentStatus !== 'PAID'
-      ? `
-          <div class="totals-row" style="margin-top: 3px; color: #dc2626;">
-            <span>
-              Status:
-            </span>
-
-            <span>
-              ${sale.paymentStatus}
-            </span>
-
-          </div>
-        `
-      : ''
-    }
-
-  </div>
-
-
-  <div class="footer">
-
-    ${settings.termsConditions
-      ? `
-          <div style="margin-bottom: 5px;">
-            ${settings.termsConditions.replace(
-        /\n/g,
-        '<br/>'
-      )}
-          </div>
-        `
-      : ''
-    }
-
-    ${settings.bankName || settings.bankAccountNumber || settings.bankIfsc
-      ? `
-          <div style="margin-bottom: 5px; border-top: 1px dashed #000; padding-top: 5px;">
-            <div style="font-weight: bold; margin-bottom: 2px;">Bank Details:</div>
-            ${settings.bankName
-        ? `<div>${settings.bankName}</div>`
-        : ''
-      }
-            ${settings.bankAccountNumber
-        ? `<div>A/c: ${settings.bankAccountNumber}</div>`
-        : ''
-      }
-            ${settings.bankIfsc
-        ? `<div>IFSC: ${settings.bankIfsc}</div>`
-        : ''
-      }
-            ${settings.bankBranch
-        ? `<div>Branch: ${settings.bankBranch}</div>`
-        : ''
-      }
-          </div>
-        `
-      : ''
-    }
-
-    <div>
-      Thank you for your business!
-    </div>
-
-  </div>
-
+<div class="footer">
+  ${settings.termsConditions ? `<div style="margin-bottom:4px">${settings.termsConditions.replace(/\n/g, '<br/>')}</div>` : ''}
+  ${settings.bankName || settings.bankAccountNumber || settings.bankIfsc ? `
+  <div style="border-top:1px dashed #000;padding-top:4px;margin-bottom:4px">
+    <div style="font-weight:bold;margin-bottom:1px">Bank Details:</div>
+    ${settings.bankName ? `<div>${settings.bankName}</div>` : ''}
+    ${settings.bankAccountNumber ? `<div>A/c: ${settings.bankAccountNumber}</div>` : ''}
+    ${settings.bankIfsc ? `<div>IFSC: ${settings.bankIfsc}</div>` : ''}
+    ${settings.bankBranch ? `<div>Branch: ${settings.bankBranch}</div>` : ''}
+  </div>` : ''}
+  <div>Thank you for your business!</div>
+</div>
 
 </body>
-
-</html>
-`
+</html>`
 }
 
 
@@ -623,12 +301,12 @@ export const generateThermalReceiptHTML = (
 //
 // PRODUCT TABLE:
 //
-// Sr | HSN | Product Name | LS | PCS | Rate | Gross | Scheme % |
+// Sr | HSN | Product Name | LP | PCS | Rate | Gross | Scheme % |
 // Taxable | GST % | GST Amount | Net Amount
 //
-// LS = Listing Price
-// Rate = LS / PCS
-// Gross = Rate * PCS = LS
+// LP = Listing Price (Product Price - Discount)
+// Rate = LP / PCS
+// Gross = Rate * PCS = LP
 // ============================================================================
 
 function numberToWordsIndian(num: number): string {
@@ -652,102 +330,64 @@ function numberToWordsIndian(num: number): string {
   return inWords(intPart) || 'Zero'
 }
 
-function renderGstLineItems(
-  sale: PrintableSale
-): string {
-
+function renderGstLineItems(sale: PrintableSale): string {
   const MIN_ROWS = 14
-
   const saleAny = sale as any
   const saleGstPercent =
-    saleAny.gstPercentage != null
-      ? Number(saleAny.gstPercentage)
-      : saleAny.taxPercentage != null
-        ? Number(saleAny.taxPercentage)
+    saleAny.gstPercentage != null ? Number(saleAny.gstPercentage)
+      : saleAny.taxPercentage != null ? Number(saleAny.taxPercentage)
         : 0
 
   const itemRows = sale.items
     .map((item, idx) => {
-
-      const name =
-        item.product?.name ??
-        item.productName ??
-        'Item'
-
+      const name = item.product?.name ?? item.productName ?? 'Item'
       const hsn = item.hsn ?? ''
-
       const itemAny = item as any
 
-      const rawLS =
-        itemAny.listingPrice != null
-          ? Number(itemAny.listingPrice)
-          : itemAny.mrp != null
-            ? Number(itemAny.mrp)
-            : null
+      const productPrice = Number(item.saleRate ?? item.unitPrice ?? item.sellingPriceAtSale ?? item.listingPrice ?? item.mrp ?? 0)
+      const discountPercent = Number(item.discountPercent ?? item.discPercent ?? 0)
+      const discountAmount = Number(item.discountAmount ?? 0)
+      const calculatedDiscount = discountPercent > 0 ? (productPrice * discountPercent) / 100 : discountAmount
+
+      const lp = Number(item.listingPrice ?? item.mrp ?? productPrice)
+      const rate = Math.max(0, productPrice - calculatedDiscount)
 
       const pcs = Number(item.pcs ?? item.quantity ?? 0)
-
-      const rate =
-        rawLS != null && pcs > 0
-          ? rawLS / pcs
-          : Number(item.saleRate ?? item.unitPrice ?? 0)
-
-      const listingPrice = rawLS != null ? rawLS : rate * pcs
       const grossAmount = rate * pcs
 
       const schemePercent = Number(item.schemePercent ?? 0)
-      const schemeAmount =
-        schemePercent > 0
-          ? (grossAmount * schemePercent) / 100
-          : 0
-
+      const schemeAmount = schemePercent > 0 ? (grossAmount * schemePercent) / 100 : 0
       const taxableAmount = Math.max(0, grossAmount - schemeAmount)
 
-      const gstPercent = Number(
-        item.gstPercent ?? itemAny.taxPercent ?? saleGstPercent
-      )
+      const gstPercent = Number(item.gstPercent ?? itemAny.taxPercent ?? saleGstPercent)
       const gstAmount = (taxableAmount * gstPercent) / 100
       const netAmount = taxableAmount + gstAmount
 
-      return `
-        <tr>
-          <td class="col-sr">${idx + 1}</td>
-          <td class="col-hsn">${hsn}</td>
-          <td class="col-desc">${name}</td>
-          <td class="col-ls">${listingPrice.toFixed(2)}</td>
-          <td class="col-pcs">${pcs}</td>
-          <td class="col-rate">${rate.toFixed(2)}</td>
-          <td class="col-gross">${grossAmount.toFixed(2)}</td>
-          <td class="col-scheme">${schemePercent > 0 ? schemePercent.toFixed(2) : ''}</td>
-          <td class="col-taxable">${taxableAmount.toFixed(2)}</td>
-          <td class="col-gstpct">${gstPercent > 0 ? gstPercent.toFixed(2) : '0.00'}</td>
-          <td class="col-gstamt">${gstAmount.toFixed(2)}</td>
-          <td class="col-net">${netAmount.toFixed(2)}</td>
-        </tr>
-      `
+      return `<tr>
+        <td class="col-sr">${idx + 1}</td>
+        <td class="col-hsn">${hsn}</td>
+        <td class="col-desc">${name}</td>
+        <td class="col-lp">${lp.toFixed(2)}</td>
+        <td class="col-pcs">${pcs}</td>
+        <td class="col-rate">${rate.toFixed(2)}</td>
+        <td class="col-gross">${grossAmount.toFixed(2)}</td>
+        <td class="col-scheme">${schemePercent > 0 ? schemePercent.toFixed(2) : ''}</td>
+        <td class="col-taxable">${taxableAmount.toFixed(2)}</td>
+        <td class="col-gstpct">${gstPercent > 0 ? gstPercent.toFixed(2) : '0.00'}</td>
+        <td class="col-gstamt">${gstAmount.toFixed(2)}</td>
+        <td class="col-net">${netAmount.toFixed(2)}</td>
+      </tr>`
     })
     .join('')
 
   const emptyRowsCount = Math.max(0, MIN_ROWS - sale.items.length)
   const emptyRows = Array.from({ length: emptyRowsCount })
-    .map(
-      () => `
-        <tr>
-          <td class="col-sr">&nbsp;</td>
-          <td class="col-hsn"></td>
-          <td class="col-desc"></td>
-          <td class="col-ls"></td>
-          <td class="col-pcs"></td>
-          <td class="col-rate"></td>
-          <td class="col-gross"></td>
-          <td class="col-scheme"></td>
-          <td class="col-taxable"></td>
-          <td class="col-gstpct"></td>
-          <td class="col-gstamt"></td>
-          <td class="col-net"></td>
-        </tr>
-      `
-    )
+    .map(() => `<tr>
+      <td class="col-sr">&nbsp;</td><td class="col-hsn"></td><td class="col-desc"></td>
+      <td class="col-lp"></td><td class="col-pcs"></td><td class="col-rate"></td>
+      <td class="col-gross"></td><td class="col-scheme"></td><td class="col-taxable"></td>
+      <td class="col-gstpct"></td><td class="col-gstamt"></td><td class="col-net"></td>
+    </tr>`)
     .join('')
 
   return itemRows + emptyRows
@@ -785,17 +425,15 @@ export const generateGSTInvoiceHTML = (
 
   sale.items.forEach((item) => {
     const itemAny = item as any
-    const rawLS =
-      itemAny.listingPrice != null
-        ? Number(itemAny.listingPrice)
-        : itemAny.mrp != null
-          ? Number(itemAny.mrp)
-          : null
+
+    const productPrice = Number(item.saleRate ?? item.unitPrice ?? item.sellingPriceAtSale ?? item.listingPrice ?? item.mrp ?? 0)
+    const discountPercent = Number(item.discountPercent ?? item.discPercent ?? 0)
+    const discountAmount = Number(item.discountAmount ?? 0)
+
+    const calculatedDiscount = discountPercent > 0 ? (productPrice * discountPercent) / 100 : discountAmount
+    const rate = Math.max(0, productPrice - calculatedDiscount)
+
     const pcs = Number(item.pcs ?? item.quantity ?? 0)
-    const rate =
-      rawLS != null && pcs > 0
-        ? rawLS / pcs
-        : Number(item.saleRate ?? item.unitPrice ?? 0)
     const gross = rate * pcs
 
     const schemePct = Number(item.schemePercent ?? 0)
@@ -813,16 +451,19 @@ export const generateGSTInvoiceHTML = (
     totalQtyPcs += pcs
   })
 
-  const storedRoundOff = Number(sale.roundOff ?? 0)
-  const roundOffValue =
-    storedRoundOff !== 0
-      ? storedRoundOff
-      : Number((Math.round(netTotal) - netTotal).toFixed(2))
+  const saleDiscount = Number(sale.discountAmount || 0)
+  const netTotalAfterSaleDisc = Math.max(0, netTotal - saleDiscount)
 
+  const storedRoundOff = Number(sale.roundOff ?? 0)
   const finalPayable =
     sale.grandTotal && sale.grandTotal > 0
       ? Number(sale.grandTotal)
-      : Math.round(netTotal)
+      : Math.round(netTotalAfterSaleDisc)
+
+  const roundOffValue =
+    storedRoundOff !== 0
+      ? storedRoundOff
+      : Number((finalPayable - netTotalAfterSaleDisc).toFixed(2))
 
   const isInterstate = Boolean(
     sale.igstApplicable ||
@@ -872,486 +513,1314 @@ export const generateGSTInvoiceHTML = (
   <title>GST Invoice - ${sale.invoiceNumber}</title>
 
   <style>
-    @page { size: 297mm 210mm; margin: 8mm 4mm; }
+    /*
+     * ============================================================
+     * REFERENCE PDF GEOMETRY
+     * ============================================================
+     *
+     * Source PDF page:
+     *   1121.33px × 793.33px
+     *
+     * Reference invoice rectangle:
+     *   left:   42.9px
+     *   top:    54.9px
+     *   width:  1056px
+     *   height: 683px
+     *
+     * Header:
+     *   x 42.9 → 401.0 → 753.0 → 1098.9
+     *   y 54.9 → 195.9
+     *
+     * Product area:
+     *   y 195.9 → 548.3
+     *   column header ends at y 225.8
+     *   data area ends at y 529.1
+     *   total row ends at y 548.3
+     *
+     * Bottom:
+     *   top summary: y 548.0 → 621.8
+     *   words:       y 621.8 → 639.9
+     *   terms:       y 639.9 → 737.9
+     *
+     * Product columns are NOT added or removed.
+     * The existing 12 columns are retained.
+     */
+
+    @page {
+      size: 1121.33px 793.33px;
+      margin: 0;
+    }
 
     @media print {
-      @page { size: 297mm 210mm; margin: 8mm 4mm; }
-      html, body { width: 289mm; height: 194mm; overflow: hidden; }
+      @page {
+        size: 1121.33px 793.33px;
+        margin: 0;
+      }
+
+      html,
+      body {
+        width: 1121.33px;
+        height: 793.33px;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+
+      .page {
+        page-break-after: always;
+        break-after: page;
+      }
+
+      .page:last-child {
+        page-break-after: auto;
+        break-after: auto;
+      }
     }
 
     * {
       box-sizing: border-box;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
+    }
+
+    html,
+    body {
       margin: 0;
       padding: 0;
-      font-weight: 700 !important;
-    }
-
-    html, body {
-      width: 289mm;
-      height: 194mm;
-      background: #ffffff;
-      color: #000000;
+      width: 1121.33px;
+      height: 793.33px;
+      background: #e8e8e8;
+      color: #000;
       font-family: Arial, Helvetica, sans-serif;
-      font-size: 9px;
-      line-height: 1.25;
-      font-weight: 700 !important;
+      font-weight: 700;
     }
 
-    .invoice-page {
-      width: 289mm;
-      height: 194mm;
-      margin: 0 auto;
-      border: 1px solid #000;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      background: #ffffff;
-      page-break-inside: avoid;
-      break-inside: avoid;
+    body {
+      overflow: hidden;
     }
+
+    /*
+     * PDF canvas
+     */
+    .page {
+      position: relative;
+      width: 1121.33px;
+      height: 793.33px;
+      margin: 0;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    /*
+     * Exact outer invoice rectangle from reference.
+     */
+    .invoice-page {
+      position: absolute;
+      left: 42.9px;
+      top: 54.9px;
+
+      width: 1056px;
+      height: 683px;
+
+      border: 0.64px solid #000;
+      background: #fff;
+
+      overflow: hidden;
+    }
+
+    /* ==========================================================
+       HEADER — exact reference proportions
+       ========================================================== */
 
     .header-row {
-      width: 100%;
+      position: absolute;
+      left: 0;
+      top: 0;
+
+      width: 1056px;
+      height: 141px;
+
       display: flex;
-      border-bottom: 1px solid #000;
+
+      border-bottom: 0.64px solid #000;
     }
 
-    .header-col { padding: 4px 6px; }
+    .header-col {
+      position: relative;
+      height: 141px;
+
+      padding: 0;
+
+      overflow: hidden;
+    }
 
     .header-col.seller {
-      width: 38%;
-      border-right: 1px solid #000;
+      width: 358.1px;
+      border-right: 0.64px solid #000;
     }
 
     .header-col.center {
-      width: 24%;
-      border-right: 1px solid #000;
-      text-align: center;
+      width: 352px;
+      border-right: 0.64px solid #000;
     }
 
-    .header-col.party { width: 38%; }
+    .header-col.party {
+      width: 345.9px;
+    }
+
+    /* ==========================================================
+       SELLER HEADER
+       ========================================================== */
 
     .seller-name {
-      font-size: 13px;
+      position: absolute;
+      left: 2.9px;
+      top: 0.9px;
+
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 18.67px;
+      line-height: 1;
       font-weight: 700;
-      text-transform: uppercase;
-      margin-bottom: 2px;
+
+      white-space: nowrap;
     }
-    .seller-line { font-size: 8px; line-height: 1.3; margin-top: 1px; }
+
+    .seller-line {
+      position: absolute;
+      left: 2.9px;
+
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 13.33px;
+      line-height: 1;
+      font-weight: 700;
+
+      white-space: nowrap;
+    }
+
+    .seller-address {
+      top: 20px;
+    }
+
+    .seller-city {
+      top: 36px;
+    }
+
+    .seller-phone {
+      top: 52px;
+    }
+
+    .seller-fssai {
+      top: 68px;
+    }
+
+    .seller-gstin {
+      top: 102px;
+    }
+
+    .seller-pan {
+      position: absolute;
+      left: 191.0px;
+      top: 102px;
+
+      font-size: 13.33px;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .seller-state-label {
+      position: absolute;
+      left: 2.9px;
+      top: 119px;
+
+      font-size: 12px;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .seller-state-value {
+      position: absolute;
+      left: 76px;
+      top: 119px;
+
+      font-size: 12px;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .seller-code-label {
+      position: absolute;
+      left: 191px;
+      top: 119px;
+
+      font-size: 12px;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .seller-code-value {
+      position: absolute;
+      left: 249px;
+      top: 119px;
+
+      font-size: 12px;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    /* ==========================================================
+       CENTER HEADER
+       ========================================================== */
 
     .gst-title {
-      font-size: 11px;
-      font-weight: 800;
-      text-transform: uppercase;
+      position: absolute;
+      left: 0;
+      top: 2px;
+
+      width: 352px;
+
+      font-size: 16px;
+      line-height: 1;
+      font-weight: 700;
+
       text-align: center;
-      margin-bottom: 2px;
-      padding-bottom: 1px;
-      border-bottom: 1px solid #000;
+      white-space: nowrap;
     }
-    .center-content-wrapper {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 6px;
-      margin-top: 2px;
-    }
-    .center-left-info {
-      flex: 1;
-      text-align: left;
-      font-size: 8px;
-      font-weight: 700;
-      line-height: 1.35;
-    }
+
     .credit-memo-label {
-      font-size: 8.5px;
-      font-weight: 800;
-      text-transform: uppercase;
-      margin-bottom: 2px;
+      position: absolute;
+      left: 66px;
+      top: 25px;
+
+      font-size: 13.33px;
+      line-height: 1;
+      font-weight: 700;
+
+      white-space: nowrap;
     }
-    .center-left-info .inv-meta-row {
+
+    .center-meta {
+      position: absolute;
+      left: 4.8px;
+
+      width: 145px;
+
       display: flex;
       justify-content: space-between;
-      gap: 4px;
+      align-items: baseline;
+
+      font-size: 12px;
+      line-height: 1;
+
+      white-space: nowrap;
+    }
+
+    .center-invoice-no {
+      top: 49px;
+    }
+
+    .center-invoice-date {
+      top: 82px;
+    }
+
+    .center-due-date {
+      top: 116px;
+    }
+
+    .center-meta .label {
+      font-size: 13.33px;
       font-weight: 700;
-      margin-top: 1px;
     }
-    .center-right-qr {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
+
+    .center-meta .value {
+      font-size: 12px;
+      font-weight: 700;
     }
-    .center-right-qr .qr-code-image {
-      width: 50px;
-      height: 50px;
+
+    .center-qr {
+      position: absolute;
+
+      left: 210px;
+      top: 27px;
+
+      width: 120px;
+      height: 120px;
+
       display: block;
-      border: 1px solid #000;
       object-fit: contain;
     }
-    .center-right-qr .qr-code-label {
-      font-size: 6px;
-      margin-top: 1px;
-      font-weight: 700;
-      text-align: center;
-    }
+
+    /* ==========================================================
+       PARTY HEADER
+       ========================================================== */
 
     .party-label {
-      font-size: 9px;
-      font-weight: 800;
+      position: absolute;
+      left: 9.9px;
+      top: 0;
+
+      font-size: 12px;
+      line-height: 1;
+      font-weight: 700;
+
       text-decoration: underline;
-      margin-bottom: 2px;
+      white-space: nowrap;
     }
-    .party-name { font-weight: 800; font-size: 10px; margin-bottom: 1px; }
-    .party-line { font-size: 8px; font-weight: 700; line-height: 1.3; margin-top: 1px; }
+
+    .party-name {
+      position: absolute;
+      left: 5.9px;
+      top: 20px;
+
+      font-size: 13.33px;
+      line-height: 1;
+      font-weight: 700;
+
+      white-space: nowrap;
+    }
+
+    .party-line {
+      position: absolute;
+      left: 5.9px;
+
+      font-size: 12px;
+      line-height: 1;
+      font-weight: 700;
+
+      white-space: nowrap;
+    }
+
+    .party-address {
+      top: 34px;
+    }
+
+    .party-city {
+      top: 50px;
+    }
+
+    .party-phone-label {
+      top: 66px;
+    }
+
+    .party-phone-value {
+      left: 82px;
+      top: 66px;
+    }
+
+    .party-gst-label {
+      top: 82px;
+    }
+
+    .party-gst-value {
+      left: 82px;
+      top: 82px;
+    }
+
+    .party-fssai {
+      top: 98px;
+    }
+
+    /* ==========================================================
+       PRODUCT TABLE
+       ========================================================== */
 
     .items-table {
-      width: 100%;
+      position: absolute;
+      left: 0;
+      top: 141px;
+
+      width: 1056px;
+      height: 352.4px;
+
       border-collapse: collapse;
       table-layout: fixed;
-      border: 1px solid #000;
+
+      font-family: Arial, Helvetica, sans-serif;
+      font-weight: 700;
+
+      border: 0;
     }
 
-    .items-table th,
-    .items-table td {
-      padding: 2px 3px;
-      font-size: 8px;
-      line-height: 1.2;
-      vertical-align: middle;
-      overflow: hidden;
-      word-wrap: break-word;
+    .items-table col.col-sr      { width: 2.9261%; }
+    .items-table col.col-hsn     { width: 5.8807%; }
+    .items-table col.col-desc    { width: 28.5985%; }
+    .items-table col.col-lp      { width: 6.0511%; }
+    .items-table col.col-pcs     { width: 8.5322%; }
+    .items-table col.col-rate    { width: 8.9962%; }
+    .items-table col.col-gross   { width: 5.4830%; }
+    .items-table col.col-scheme  { width: 9.1951%; }
+    .items-table col.col-taxable { width: 7.0170%; }
+    .items-table col.col-gstpct  { width: 3.7973%; }
+    .items-table col.col-gstamt  { width: 5.4830%; }
+    .items-table col.col-net     { width: 8.0492%; }
+
+    .items-table thead {
+      height: 29.9px;
+    }
+
+    .items-table thead tr {
+      height: 29.9px;
     }
 
     .items-table thead th {
-      border: 1px solid #000;
+      height: 29.9px;
+
+      border: 0.64px solid #000;
+
+      padding: 0 2px;
+
+      font-size: 12px;
+      line-height: 1;
+
       font-weight: 700;
       text-align: center;
-      background: #ffffff;
-      padding: 3px 2px;
+      vertical-align: middle;
+
+      background: #fff;
+    }
+
+    .items-table tbody {
+      height: 303.2px;
+    }
+
+    .items-table tbody tr {
+      height: 16.85px;
     }
 
     .items-table tbody td {
-      border-left: 1px solid #000;
-      border-right: 1px solid #000;
-      border-top: none;
-      border-bottom: none;
-      height: 5mm;
+      height: 16.85px;
+
+      padding: 0 2px;
+
+      border-left: 0.64px solid #000;
+      border-right: 0.64px solid #000;
+
+      border-top: 0;
+      border-bottom: 0;
+
+      font-size: 10.67px;
+      line-height: 1;
+
+      font-weight: 700;
+      vertical-align: middle;
+
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: clip;
+    }
+
+    .items-table tfoot {
+      height: 19.2px;
+    }
+
+    .items-table tfoot tr {
+      height: 19.2px;
     }
 
     .items-table tfoot td {
-      border: 1px solid #000;
+      height: 19.2px;
+
+      border: 0.64px solid #000;
+
+      padding: 0 2px;
+
+      font-size: 10.67px;
+      line-height: 1;
+
       font-weight: 700;
-      background: #ffffff;
+      vertical-align: middle;
+
+      background: #fff;
     }
 
-    .col-sr      { width: 4%;  text-align: center; }
-    .col-hsn     { width: 7%;  text-align: center; }
-    .col-desc    { width: 22%; text-align: left;   }
-    .col-ls      { width: 8%;  text-align: right;  }
-    .col-pcs     { width: 5%;  text-align: center; }
-    .col-rate    { width: 8%;  text-align: right;  }
-    .col-gross   { width: 9%;  text-align: right;  }
-    .col-scheme  { width: 5%;  text-align: center; }
-    .col-taxable { width: 10%; text-align: right;  }
-    .col-gstpct  { width: 4%;  text-align: center; }
-    .col-gstamt  { width: 9%;  text-align: right;  }
-    .col-net     { width: 9%;  text-align: right;  }
-
-    .summary-row {
-      width: 100%;
-      display: flex;
-      border-top: 1px solid #000;
+    .items-table .col-sr {
+      text-align: center;
     }
 
-    .summary-col { padding: 4px 6px; }
-
-    .summary-col.tax-breakdown {
-      width: 44%;
-      border-right: 1px solid #000;
+    .items-table .col-hsn {
+      text-align: center;
     }
 
-    .summary-col.bank-details {
-      width: 26%;
-      border-right: 1px solid #000;
+    .items-table .col-desc {
+      text-align: left;
     }
 
-    .summary-col.amount-summary {
-      width: 30%;
-    }
-
-    .tax-table {
-      width: 100%;
-      border-collapse: collapse;
-      table-layout: fixed;
-      margin-bottom: 3px;
-    }
-    .tax-table th, .tax-table td {
-      border: 1px solid #000;
-      padding: 2px;
-      font-size: 7px;
+    .items-table .col-lp,
+    .items-table .col-rate,
+    .items-table .col-gross,
+    .items-table .col-taxable,
+    .items-table .col-gstamt,
+    .items-table .col-net {
       text-align: right;
     }
-    .tax-table th { font-weight: 700; text-align: center; }
-    .tax-table td:first-child { text-align: center; }
 
-    .bank-line { font-size: 7.5px; line-height: 1.4; margin-bottom: 1px; }
+    .items-table .col-pcs,
+    .items-table .col-scheme,
+    .items-table .col-gstpct {
+      text-align: center;
+    }
+
+    /* ==========================================================
+       BOTTOM AREA
+       Reference:
+         x 42.9 → 437.9 → 610.8 → 848.0 → 1098.9
+       ========================================================== */
+
+    .bottom-area {
+      position: absolute;
+      left: 0;
+      top: 493.1px;
+
+      width: 1056px;
+      height: 189.9px;
+
+      font-family: Arial, Helvetica, sans-serif;
+      font-weight: 700;
+    }
+
+    /* ----------------------------------------------------------
+       TOP SUMMARY — y 548 → 621.8
+       ---------------------------------------------------------- */
+
+    .top-summary {
+      position: absolute;
+      left: 0;
+      top: 0;
+
+      width: 1056px;
+      height: 74px;
+
+      border-top: 0.64px solid #000;
+    }
+
+    .tax-breakdown {
+      position: absolute;
+      left: 0;
+      top: 0;
+
+      width: 395px;
+      height: 74px;
+
+      border-right: 0.64px solid #000;
+    }
+
+    .item-counts {
+      position: absolute;
+      left: 395px;
+      top: 0;
+
+      width: 172.9px;
+      height: 74px;
+
+      border-right: 0.64px solid #000;
+
+      padding: 14px 8px 0 4px;
+
+      font-size: 13.33px;
+      line-height: 1.35;
+    }
+
+    .bank-details {
+      position: absolute;
+      left: 567.9px;
+      top: 0;
+
+      width: 237.2px;
+      height: 74px;
+
+      border-right: 0;
+
+      padding: 1px 6px;
+    }
+
+    .amount-summary {
+      position: absolute;
+      left: 805.1px;
+      top: 0;
+
+      width: 250.9px;
+      height: 189.9px;
+
+      padding: 0;
+      border-left: 0.64px solid #000;
+    }
+
+    /* ----------------------------------------------------------
+       TAX TABLE
+       ---------------------------------------------------------- */
+
+    .tax-table {
+      position: absolute;
+      left: 0;
+      top: 0;
+
+      width: 395px;
+      height: 74px;
+
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    .tax-table th,
+    .tax-table td {
+      border: 0;
+
+      padding: 0 4px;
+
+      height: 36px;
+
+      font-size: 10.67px;
+      line-height: 1;
+
+      font-weight: 700;
+
+      text-align: right;
+      vertical-align: middle;
+    }
+
+    .tax-table th {
+      height: 22px;
+      text-align: center;
+    }
+
+    .tax-table td:first-child,
+    .tax-table th:first-child {
+      text-align: center;
+    }
+
+    /* ----------------------------------------------------------
+       BANK
+       ---------------------------------------------------------- */
+
+    .bank-title {
+      text-align: center;
+
+      font-size: 12px;
+      line-height: 1;
+
+      margin: 1px 0 5px;
+    }
+
+    .bank-line {
+      font-size: 10.67px;
+      line-height: 1.15;
+
+      white-space: nowrap;
+      margin: 0 0 2px;
+    }
+
+    /* ----------------------------------------------------------
+       ITEM COUNTS
+       ---------------------------------------------------------- */
+
+    .count-line {
+      height: 18px;
+
+      display: flex;
+      align-items: baseline;
+
+      white-space: nowrap;
+    }
+
+    .count-label {
+      min-width: 94px;
+    }
+
+    .count-value {
+      text-align: left;
+    }
+
+    /* ----------------------------------------------------------
+       RIGHT AMOUNT SUMMARY
+       ---------------------------------------------------------- */
 
     .totals-line {
+      position: relative;
+
+      width: 250.9px;
+      height: 18.9px;
+
       display: flex;
+      align-items: center;
       justify-content: space-between;
-      gap: 4px;
-      font-size: 7.5px;
-      line-height: 1.35;
-      min-height: 3.5mm;
-    }
-    .totals-line span:last-child { text-align: right; white-space: nowrap; }
-    .net-payable {
-      border-top: 1px solid #000;
-      margin-top: 2px;
-      padding-top: 2px;
+
+      padding: 0 6px 0 9px;
+
+      font-size: 13.33px;
+      line-height: 1;
+
       font-weight: 700;
-      font-size: 9px;
+
+      white-space: nowrap;
+    }
+
+    .totals-line .value {
+      text-align: right;
+      min-width: 70px;
+    }
+
+    .net-payable {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+
+      width: 250.9px;
+      height: 48.9px;
+
+      border-top: 0.64px solid #000;
+
+      display: flex;
+      flex-direction: column;
+
+      align-items: center;
+      justify-content: center;
+
+      font-size: 14.67px;
+      line-height: 1.15;
+      font-weight: 700;
+
+      text-align: center;
+    }
+
+    .net-payable-value {
+      margin-top: 4px;
+      font-size: 14.67px;
+      font-weight: 700;
+    }
+
+    /* ----------------------------------------------------------
+       LOWER LEFT + MIDDLE
+       y 621.8 → 737.9
+       ---------------------------------------------------------- */
+
+    .lower-summary {
+      position: absolute;
+      left: 0;
+      top: 74px;
+
+      width: 805.1px;
+      height: 115.9px;
     }
 
     .words-row {
-      width: 100%;
-      border-top: 1px solid #000;
-      padding: 3px 6px;
-      font-size: 8px;
+      position: absolute;
+      left: 0;
+      top: 0;
+
+      width: 805.1px;
+      height: 18.1px;
+
+      border-top: 0.64px solid #000;
+      border-bottom: 0.64px solid #000;
+
+      padding: 1px 13px;
+
+      font-size: 14.67px;
+      line-height: 1;
+
       font-weight: 700;
+
+      white-space: nowrap;
+      overflow: hidden;
     }
 
     .terms-row {
-      width: 100%;
-      border-top: 1px solid #000;
-      padding: 4px 6px;
-      font-size: 7px;
-      line-height: 1.3;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-      gap: 12px;
-    }
-    .terms-left {
-      flex: 1;
-    }
-    .terms-title { font-weight: 700; margin-bottom: 1px; }
+      position: absolute;
+      left: 0;
+      top: 18.1px;
 
-    .terms-right-signatures {
-      display: flex;
-      gap: 20px;
-      align-items: flex-end;
-      text-align: center;
+      width: 805.1px;
+      height: 97.8px;
+
+      padding: 4px 5px;
+
+      font-size: 10.67px;
+      line-height: 1.2;
+
+      font-weight: 700;
+    }
+
+    .terms-title {
+      font-size: 12px;
+      line-height: 1;
+
+      margin-bottom: 8px;
+    }
+
+    .terms-line {
+      margin-bottom: 6px;
       white-space: nowrap;
-      padding-bottom: 2px;
-    }
-    .sig-block {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-end;
-      min-width: 90px;
-    }
-    .sig-store-name {
-      font-size: 7px;
-      font-weight: 800;
-      margin-bottom: 2px;
-    }
-    .sig-space {
-      height: 20px;
-    }
-    .sig-title {
-      font-size: 7.5px;
-      font-weight: 800;
-      border-top: 1px dashed #000;
-      padding-top: 2px;
-      width: 100%;
     }
 
-    .invoice-page, .header-row, .items-table,
-    .summary-row, .words-row, .terms-row {
-      break-inside: avoid;
-      page-break-inside: avoid;
+    .narration {
+      margin-top: 2px;
+    }
+
+    /* ----------------------------------------------------------
+       SIGNATURES
+       ---------------------------------------------------------- */
+
+    .receiver-signature {
+      position: absolute;
+      left: 377px;
+      bottom: 4px;
+
+      width: 160px;
+
+      text-align: center;
+
+      font-size: 13.33px;
+      line-height: 1;
+
+      white-space: nowrap;
+    }
+
+    .authorised-signature {
+      position: absolute;
+      left: 625px;
+      bottom: 21px;
+
+      width: 155px;
+
+      text-align: center;
+
+      font-size: 13.33px;
+      line-height: 1;
+
+      white-space: nowrap;
+    }
+
+    .page-number {
+      position: absolute;
+      right: 6px;
+      bottom: 3px;
+
+      font-size: 10.67px;
+      line-height: 1;
+
+      white-space: nowrap;
     }
   </style>
-
 </head>
 
 <body>
 
-<div class="invoice-page">
+  <div class="page">
 
-  <div class="header-row">
+    <div class="invoice-page">
 
-    <div class="header-col seller">
-      <div class="seller-name">${settings.storeName || 'MY STORE'}</div>
-      ${settings.storeAddress ? `<div class="seller-line"><strong>${settings.storeAddress}${settings.storeCity ? ', ' + settings.storeCity : ''}</strong></div>` : ''}
-      ${settings.storeMobile ? `<div class="seller-line"><strong>PH:</strong> ${settings.storeMobile}</div>` : ''}
-      <div class="seller-line" style="margin-top: 4px;"><strong>GSTIN NO:</strong> ${settings.gstNumber || ''} &nbsp;&nbsp; <strong>PAN No:</strong> ${settings.panNumber || ''}</div>
-      <div class="seller-line"><strong>State: ${settings.stateName || ''}${settings.stateCode ? ' (' + settings.stateCode + ')' : ''}</strong></div>
-      ${settings.fssaiNumber ? `<div class="seller-line"><strong>FSSAI: ${settings.fssaiNumber}</strong></div>` : ''}
-    </div>
+      <!-- ======================================================
+           HEADER
+           ====================================================== -->
 
-    <div class="header-col center">
-      <div class="gst-title">GST INVOICE</div>
-      <div class="center-content-wrapper">
-        <div class="center-left-info">
-          <div class="credit-memo-label">CREDIT MEMO</div>
-          <div class="inv-meta-row"><span>Invoice No:</span> <span>${sale.invoiceNumber}</span></div>
-          <div class="inv-meta-row"><span>Date:</span> <span>${invoiceDate}</span></div>
-          <div class="inv-meta-row"><span>Due Date:</span> <span>${dueDate}</span></div>
+      <div class="header-row">
+
+        <div class="header-col seller">
+
+          <div class="seller-name">
+            ${settings.storeName || 'MY STORE'}
+          </div>
+
+          ${settings.storeAddress
+      ? `<div class="seller-line seller-address">${settings.storeAddress}</div>`
+      : ''
+    }
+
+          ${settings.storeCity
+      ? `<div class="seller-line seller-city">${settings.storeCity}</div>`
+      : ''
+    }
+
+          ${settings.storeMobile
+      ? `<div class="seller-line seller-phone">PH : ${settings.storeMobile}</div>`
+      : ''
+    }
+
+          ${settings.fssaiNumber
+      ? `<div class="seller-line seller-fssai">FSSAI NO :${settings.fssaiNumber}</div>`
+      : ''
+    }
+
+          <div class="seller-line seller-gstin">
+            GSTIN NO : ${settings.gstNumber || ''}
+          </div>
+
+          <div class="seller-pan">
+            PAN No. ${settings.panNumber || ''}
+          </div>
+
+          <div class="seller-state-label">
+            STATE
+          </div>
+
+          <div class="seller-state-value">
+            : ${settings.stateName || ''}
+          </div>
+
+          <div class="seller-code-label">
+            CODE
+          </div>
+
+          <div class="seller-code-value">
+            : ${settings.stateCode || ''}
+          </div>
+
         </div>
-        <div class="center-right-qr">
-          <img src="${qrSrc}" alt="Payment QR Code" class="qr-code-image" />
-          <div class="qr-code-label">Scan to Pay</div>
+
+
+        <div class="header-col center">
+
+          <div class="gst-title">
+            GST INVOICE
+          </div>
+
+          <div class="credit-memo-label">
+            Credit Memo
+          </div>
+
+          <div class="center-meta center-invoice-no">
+            <span class="label">Invoice No.</span>
+            <span class="value">${sale.invoiceNumber}</span>
+          </div>
+
+          <div class="center-meta center-invoice-date">
+            <span class="label">Invoice Date</span>
+            <span class="value">${invoiceDate}</span>
+          </div>
+
+          <div class="center-meta center-due-date">
+            <span class="label">Due Date</span>
+            <span class="value">${dueDate}</span>
+          </div>
+
+          <img
+            src="${qrSrc}"
+            alt="Payment QR"
+            class="center-qr"
+          />
+
         </div>
+
+
+        <div class="header-col party">
+
+          <div class="party-label">
+            Party Name :
+          </div>
+
+          <div class="party-name">
+            ${sale.customerName || 'Walk-in Customer'}
+          </div>
+
+          ${sale.customerAddress
+      ? `<div class="party-line party-address">${sale.customerAddress}</div>`
+      : ''
+    }
+
+          ${sale.customerMobile
+      ? `<div class="party-line party-city">${sale.customerAddress ? '' : ''}</div>
+               <div class="party-line party-phone-label">PHONE :</div>
+               <div class="party-line party-phone-value">Ph:Mob:${sale.customerMobile}</div>`
+      : ''
+    }
+
+          ${sale.customerGstNumber
+      ? `<div class="party-line party-gst-label">GST No :</div>
+               <div class="party-line party-gst-value">${sale.customerGstNumber}</div>`
+      : ''
+    }
+
+          ${customerState
+      ? `<div class="party-line party-city">${customerState}</div>`
+      : ''
+    }
+
+          ${sale.customerFssai
+      ? `<div class="party-line party-fssai">FSSAI NO.</div>`
+      : ''
+    }
+
+        </div>
+
       </div>
-    </div>
-
-    <div class="header-col party">
-      <div class="party-label"><strong>CUSTOMER / PARTY</strong></div>
-      <div class="party-name"><strong>${sale.customerName || 'Walk-in Customer'}</strong></div>
-      ${sale.customerAddress ? `<div class="party-line"><strong>Address: ${sale.customerAddress}</strong></div>` : ''}
-      ${sale.customerMobile ? `<div class="party-line"><strong>Phone: ${sale.customerMobile}</strong></div>` : ''}
-      ${sale.customerGstNumber ? `<div class="party-line"><strong>GSTIN: ${sale.customerGstNumber}</strong></div>` : ''}
-      ${customerState ? `<div class="party-line"><strong>State: ${customerState}</strong></div>` : ''}
-      ${sale.customerFssai ? `<div class="party-line"><strong>FSSAI: ${sale.customerFssai}</strong></div>` : ''}
-    </div>
-
-  </div>
 
 
-  <table class="items-table">
-    <colgroup>
-      <col class="col-sr">   <col class="col-hsn">  <col class="col-desc">
-      <col class="col-ls">   <col class="col-pcs">  <col class="col-rate">
-      <col class="col-gross"><col class="col-scheme"><col class="col-taxable">
-      <col class="col-gstpct"><col class="col-gstamt"><col class="col-net">
-    </colgroup>
-    <thead>
-      <tr>
-        <th>Sr.</th>
-        <th>HSN</th>
-        <th>Product Description</th>
-        <th>LS</th>
-        <th>Pcs</th>
-        <th>Rate</th>
-        <th>Gross</th>
-        <th>Sch%</th>
-        <th>Taxable</th>
-        <th>GST%</th>
-        <th>GST Amt</th>
-        <th>Net Amount</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${renderGstLineItems(sale)}
-    </tbody>
-    <tfoot>
-      <tr>
-        <td colspan="4" style="text-align: right;">TOTAL:</td>
-        <td class="col-pcs">${totalQtyPcs}</td>
-        <td class="col-rate"></td>
-        <td class="col-gross">${grossTotal.toFixed(2)}</td>
-        <td class="col-scheme">${schemeTotal > 0 ? schemeTotal.toFixed(2) : ''}</td>
-        <td class="col-taxable">${taxableTotal.toFixed(2)}</td>
-        <td class="col-gstpct"></td>
-        <td class="col-gstamt">${gstTotal.toFixed(2)}</td>
-        <td class="col-net">${netTotal.toFixed(2)}</td>
-      </tr>
-    </tfoot>
-  </table>
+      <!-- ======================================================
+           PRODUCT TABLE
+           EXACTLY THE EXISTING 12 COLUMNS
+           ====================================================== -->
 
+      <table class="items-table">
 
-  <div class="summary-row">
+        <colgroup>
+          <col class="col-sr">
+          <col class="col-hsn">
+          <col class="col-desc">
+          <col class="col-lp">
+          <col class="col-pcs">
+          <col class="col-rate">
+          <col class="col-gross">
+          <col class="col-scheme">
+          <col class="col-taxable">
+          <col class="col-gstpct">
+          <col class="col-gstamt">
+          <col class="col-net">
+        </colgroup>
 
-    <div class="summary-col tax-breakdown">
-      <div style="font-weight:700; font-size:8px; margin-bottom:2px;">GST Tax Details</div>
-      <table class="tax-table">
         <thead>
           <tr>
+            <th>Sr.</th>
             <th>HSN</th>
-            <th>Taxable</th>
-            <th>CGST %</th>
-            <th>CGST Amt</th>
-            <th>SGST %</th>
-            <th>SGST Amt</th>
-            <th>IGST %</th>
-            <th>IGST Amt</th>
+            <th>Product Name</th>
+            <th>LP</th>
+            <th>PCS</th>
+            <th>Rate</th>
+            <th>Gross<br>Amount</th>
+            <th>Scheme<br>%</th>
+            <th>Taxable<br>Amount</th>
+            <th>GST<br>%</th>
+            <th>GST<br>Amount</th>
+            <th>Net Amount</th>
           </tr>
         </thead>
+
         <tbody>
-          <tr>
-            <td>${sale.items[0]?.hsn || 'TOTAL'}</td>
-            <td>${taxableTotal.toFixed(2)}</td>
-            <td>${!isInterstate ? (firstGstPercent / 2).toFixed(1) + '%' : '-'}</td>
-            <td>${!isInterstate ? cgstVal.toFixed(2) : '0.00'}</td>
-            <td>${!isInterstate ? (firstGstPercent / 2).toFixed(1) + '%' : '-'}</td>
-            <td>${!isInterstate ? sgstVal.toFixed(2) : '0.00'}</td>
-            <td>${isInterstate ? firstGstPercent.toFixed(1) + '%' : '-'}</td>
-            <td>${isInterstate ? igstVal.toFixed(2) : '0.00'}</td>
-          </tr>
+          ${renderGstLineItems(sale)}
         </tbody>
+
+        <tfoot>
+          <tr>
+            <td colspan="4"></td>
+
+            <td class="col-pcs">
+              ${totalQtyPcs.toFixed(2)}
+            </td>
+
+            <td class="col-rate"></td>
+
+            <td class="col-gross">
+              ${grossTotal.toFixed(2)}
+            </td>
+
+            <td class="col-scheme">
+              ${schemeTotal > 0 ? schemeTotal.toFixed(2) : '0.00'}
+            </td>
+
+            <td class="col-taxable">
+              ${taxableTotal.toFixed(2)}
+            </td>
+
+            <td class="col-gstpct"></td>
+
+            <td class="col-gstamt">
+              ${gstTotal.toFixed(2)}
+            </td>
+
+            <td class="col-net">
+              ${netTotal.toFixed(2)}
+            </td>
+          </tr>
+        </tfoot>
+
       </table>
-    </div>
-
-    <div class="summary-col bank-details">
-      <div style="font-weight:700; font-size:8px; margin-bottom:2px;">Bank Details</div>
-      ${bankName ? `<div class="bank-line"><strong>Bank:</strong> ${bankName}</div>` : ''}
-      ${accountNumber ? `<div class="bank-line"><strong>A/C No:</strong> ${accountNumber}</div>` : ''}
-      ${ifscCode ? `<div class="bank-line"><strong>IFSC:</strong> ${ifscCode}</div>` : ''}
-      ${branchName ? `<div class="bank-line"><strong>Branch:</strong> ${branchName}</div>` : ''}
-      ${upiId ? `<div class="bank-line"><strong>UPI ID:</strong> ${upiId}</div>` : ''}
-    </div>
-
-    <div class="summary-col amount-summary">
-      <div class="totals-line"><span>Gross Amount:</span><span>${symbol}${grossTotal.toFixed(2)}</span></div>
-      ${schemeTotal > 0 ? `<div class="totals-line"><span>Scheme Discount:</span><span>-${symbol}${schemeTotal.toFixed(2)}</span></div>` : ''}
-      <div class="totals-line"><span>Taxable Amount:</span><span>${symbol}${taxableTotal.toFixed(2)}</span></div>
-      ${!isInterstate ? `
-        <div class="totals-line"><span>CGST:</span><span>${symbol}${cgstVal.toFixed(2)}</span></div>
-        <div class="totals-line"><span>SGST:</span><span>${symbol}${sgstVal.toFixed(2)}</span></div>
-      ` : `
-        <div class="totals-line"><span>IGST:</span><span>${symbol}${igstVal.toFixed(2)}</span></div>
-      `}
-      ${roundOffValue !== 0 ? `<div class="totals-line"><span>Round-off:</span><span>${roundOffValue > 0 ? '+' : ''}${roundOffValue.toFixed(2)}</span></div>` : ''}
-      <div class="totals-line net-payable"><span>NET PAYABLE:</span><span>${symbol}${finalPayable.toFixed(2)}</span></div>
-    </div>
-
-  </div>
 
 
-  <div class="words-row">
-    Amount in Words: ${amountInWordsStr} Only
-  </div>
+      <!-- ======================================================
+           BOTTOM AREA
+       ====================================================== -->
+
+      <div class="bottom-area">
+
+        <!-- TOP SUMMARY -->
+
+        <div class="top-summary">
+
+          <!-- TAX BREAKDOWN -->
+
+          <div class="tax-breakdown">
+
+            <table class="tax-table">
+
+              <thead>
+                <tr>
+                  <th>Tax %</th>
+                  <th>Taxable</th>
+                  <th>Tax Amt</th>
+                  <th>CGST</th>
+                  <th>SGST</th>
+                  <th>IGST</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                <tr>
+                  <td>${firstGstPercent.toFixed(2)}</td>
+                  <td>${taxableTotal.toFixed(2)}</td>
+                  <td>${gstTotal.toFixed(2)}</td>
+                  <td>${cgstVal.toFixed(2)}</td>
+                  <td>${sgstVal.toFixed(2)}</td>
+                  <td>${igstVal.toFixed(2)}</td>
+                </tr>
+              </tbody>
+
+            </table>
+
+          </div>
 
 
-  <div class="terms-row">
-    <div class="terms-left">
-      <div class="terms-title">Terms & Conditions:</div>
-      <div>${settings.termsConditions || '1. Goods once sold will not be taken back. 2. Subject to local jurisdiction only.'}</div>
-      ${settings.jurisdictionText ? `<div>${settings.jurisdictionText}</div>` : ''}
-      <div style="margin-top: 3px;">Narration :</div>
-    </div>
+          <!-- ITEM COUNTS -->
 
-    <div class="terms-right-signatures">
-      <div class="sig-block">
-        <div class="sig-space"></div>
-        <div class="sig-title">Receiver's Signatory</div>
+          <div class="item-counts">
+
+            <div class="count-line">
+              <span class="count-label">Total Items :-</span>
+              <span class="count-value">${sale.items.length}</span>
+            </div>
+
+            <div class="count-line">
+              <span class="count-label">Total Qty :-</span>
+              <span class="count-value">${totalQtyPcs.toFixed(2)}</span>
+            </div>
+
+            <div class="count-line">
+              <span class="count-label">No Of Boxes :-</span>
+              <span class="count-value">-</span>
+            </div>
+
+          </div>
+
+
+          <!-- BANK DETAILS -->
+
+          <div class="bank-details">
+
+            <div class="bank-title">
+              Bank Details :
+            </div>
+
+            ${bankName
+      ? `<div class="bank-line">Account Name:- ${bankName}</div>`
+      : ''
+    }
+
+            ${accountNumber
+      ? `<div class="bank-line">Ac No : ${accountNumber}</div>`
+      : ''
+    }
+
+            ${ifscCode
+      ? `<div class="bank-line">IFSC Code : ${ifscCode}</div>`
+      : ''
+    }
+
+            ${branchName
+      ? `<div class="bank-line">Branch : ${branchName}</div>`
+      : ''
+    }
+
+          </div>
+
+
+          <!-- RIGHT AMOUNT SUMMARY -->
+
+          <div class="amount-summary">
+
+            <div class="totals-line">
+              <span>Gross Amount</span>
+              <span class="value">${symbol}${grossTotal.toFixed(2)}</span>
+            </div>
+
+            <div class="totals-line">
+              <span>Total Disc</span>
+              <span class="value">${symbol}${saleDiscount.toFixed(2)}</span>
+            </div>
+
+            <div class="totals-line">
+              <span>Total Scheme</span>
+              <span class="value">${symbol}${schemeTotal.toFixed(2)}</span>
+            </div>
+
+            <div class="totals-line">
+              <span>GST Amt [+]</span>
+              <span class="value">${symbol}${gstTotal.toFixed(2)}</span>
+            </div>
+
+            <div class="totals-line">
+              <span>Other</span>
+              <span class="value">${symbol}0.00</span>
+            </div>
+
+            <div class="totals-line">
+              <span>Cash Disc</span>
+              <span class="value">${symbol}0.00</span>
+            </div>
+
+            <div class="totals-line">
+              <span>Round off</span>
+              <span class="value">${roundOffValue.toFixed(2)}</span>
+            </div>
+
+            <div class="net-payable">
+              <div>Net Payable Amt</div>
+              <div class="net-payable-value">
+                ${symbol}${finalPayable.toFixed(2)}
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <!-- LOWER AREA -->
+
+        <div class="lower-summary">
+
+          <div class="words-row">
+            Invoice Value [ In Words ] : ${amountInWordsStr}
+          </div>
+
+          <div class="terms-row">
+
+            <div class="terms-title">
+              Terms &amp; Conditions
+            </div>
+
+            <div class="terms-line">
+              ${settings.termsConditions || 'Goods once sold will not be taken or exchanged.'}
+            </div>
+
+            <div class="terms-line">
+              ${settings.jurisdictionText || 'SUBJECT TO LOCAL JURISDICTION'}
+            </div>
+
+            <div class="narration">
+              Narration :
+            </div>
+
+            <div class="receiver-signature">
+              Receiver's Signatory
+            </div>
+
+            <div class="authorised-signature">
+              Authorised Signatory
+            </div>
+
+            <div class="page-number">
+              Page No. : 1
+            </div>
+
+          </div>
+
+        </div>
+
       </div>
-      <div class="sig-block">
-        <div class="sig-store-name">For ${settings.storeName || 'MY STORE'}</div>
-        <div class="sig-space"></div>
-        <div class="sig-title">Authorised Signatory</div>
-      </div>
+
     </div>
+
   </div>
-
-
-</div>
 
 </body>
 </html>
 `
 }
+
