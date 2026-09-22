@@ -15,6 +15,7 @@ const NEXT_PORT = 3000
 
 // ---------------------------------------------------
 // GPU & MEMORY CONFIG
+
 // ---------------------------------------------------
 
 app.disableHardwareAcceleration()
@@ -286,7 +287,7 @@ app
     const {
       initializeDatabase,
     } = await import(
-      '../src/lib/init-db.js'
+      '../src/lib/init-db'
     )
 
 

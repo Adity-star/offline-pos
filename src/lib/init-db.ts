@@ -6,6 +6,18 @@ import path from 'path'
 import { prisma } from './prisma'
 
 function getDatabasePath(): string {
+  const isProduction =
+    process.env.AK_ENV === 'production' ||
+    process.env.NODE_ENV === 'production'
+
+  if (!isProduction) {
+    return path.join(
+      process.cwd(),
+      'database',
+      'shop.db'
+    )
+  }
+
   const appData =
     process.env.APPDATA ||
     path.join(
@@ -125,7 +137,7 @@ export async function initializeDatabase() {
     )
   }
 
- await prisma.user.upsert({
+  await prisma.user.upsert({
     where: {
       username: 'system',
     },

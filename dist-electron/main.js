@@ -8,9 +8,6 @@ var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __esm = (fn, res) => function __init() {
   return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
 };
-var __commonJS = (cb, mod) => function __require() {
-  return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
-};
 var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
@@ -31,13 +28,8 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
   mod
 ));
-var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // src/lib/prisma.ts
-var prisma_exports = {};
-__export(prisma_exports, {
-  prisma: () => prisma
-});
 function getDatabasePath() {
   if (!isProduction) {
     const databaseDir = import_path3.default.join(
@@ -103,91 +95,161 @@ var init_prisma = __esm({
   }
 });
 
-// src/lib/init-db.js
-var require_init_db = __commonJS({
-  "src/lib/init-db.js"(exports2) {
+// src/lib/init-db.ts
+var init_db_exports = {};
+__export(init_db_exports, {
+  initializeDatabase: () => initializeDatabase
+});
+function getDatabasePath2() {
+  const isProduction2 = process.env.AK_ENV === "production" || process.env.NODE_ENV === "production";
+  if (!isProduction2) {
+    return import_path4.default.join(
+      process.cwd(),
+      "database",
+      "shop.db"
+    );
+  }
+  const appData = process.env.APPDATA || import_path4.default.join(
+    process.env.USERPROFILE || process.cwd(),
+    "AppData",
+    "Roaming"
+  );
+  return import_path4.default.join(
+    appData,
+    "ak-software",
+    "shop.db"
+  );
+}
+function getTemplateDatabasePath() {
+  if (import_electron7.app.isPackaged) {
+    return import_path4.default.join(
+      process.resourcesPath,
+      "database",
+      "shop-template.db"
+    );
+  }
+  return import_path4.default.join(
+    process.cwd(),
+    "database",
+    "shop-template.db"
+  );
+}
+function ensureDatabaseExists() {
+  const dbPath2 = getDatabasePath2();
+  const templatePath = getTemplateDatabasePath();
+  const dbDir = import_path4.default.dirname(dbPath2);
+  if (!import_fs4.default.existsSync(dbDir)) {
+    import_fs4.default.mkdirSync(dbDir, {
+      recursive: true
+    });
+  }
+  const exists = import_fs4.default.existsSync(dbPath2);
+  const isEmpty = exists && import_fs4.default.statSync(dbPath2).size === 0;
+  if (!exists || isEmpty) {
+    console.log(
+      "Database does not exist or is empty."
+    );
+    console.log(
+      "Looking for template:",
+      templatePath
+    );
+    if (!import_fs4.default.existsSync(templatePath)) {
+      throw new Error(
+        `Database template not found:
+${templatePath}`
+      );
+    }
+    import_fs4.default.copyFileSync(
+      templatePath,
+      dbPath2
+    );
+    console.log(
+      "Created database from template:",
+      dbPath2
+    );
+  }
+}
+async function initializeDatabase() {
+  console.log(
+    "Start database initialization..."
+  );
+  ensureDatabaseExists();
+  const existingSettings = await prisma.setting.count();
+  if (existingSettings === 0) {
+    await prisma.setting.create({
+      data: {
+        storeName: "Jai Hanuman Agency",
+        storeAddress: "",
+        storePhone: "+91 9876543210",
+        storeEmail: "",
+        invoicePrefix: "INV",
+        taxPercentage: new import_client2.Prisma.Decimal(0),
+        currencySymbol: "\u20B9",
+        thermalPaperWidth: "80mm",
+        allowNegativeStock: false
+      }
+    });
+    console.log(
+      "Created default settings"
+    );
+  }
+  await prisma.user.upsert({
+    where: {
+      username: "system"
+    },
+    update: {
+      fullName: "System User",
+      role: "ADMIN",
+      isActive: true
+    },
+    create: {
+      username: "system",
+      password: "offline-system-user",
+      fullName: "System User",
+      role: "ADMIN",
+      isActive: true
+    }
+  });
+  console.log(
+    "Ensured default offline system user"
+  );
+  const categories = [
+    "Electronics",
+    "Miscellaneous",
+    "Hardware",
+    "Electrical"
+  ];
+  for (const name of categories) {
+    await prisma.category.upsert({
+      where: { name },
+      update: {},
+      create: { name }
+    });
+  }
+  console.log(
+    "Created default categories"
+  );
+  console.log(
+    "Database initialization finished."
+  );
+}
+var import_client2, import_electron7, import_fs4, import_path4;
+var init_init_db = __esm({
+  "src/lib/init-db.ts"() {
     "use strict";
-    Object.defineProperty(exports2, "__esModule", { value: true });
-    exports2.initializeDatabase = initializeDatabase;
-    var client_1 = require("@prisma/client");
-    var electron_1 = require("electron");
-    var fs_1 = require("fs");
-    var path_1 = require("path");
-    var prisma_1 = (init_prisma(), __toCommonJS(prisma_exports));
-    function getDatabasePath2() {
-      const appData = process.env.APPDATA || path_1.join(process.env.USERPROFILE || process.cwd(), "AppData", "Roaming");
-      return path_1.join(appData, "ak-software", "shop.db");
-    }
-    function getTemplateDatabasePath() {
-      if (electron_1.app.isPackaged) {
-        return path_1.join(process.resourcesPath, "database", "shop-template.db");
-      }
-      return path_1.join(process.cwd(), "database", "shop-template.db");
-    }
-    function ensureDatabaseExists() {
-      const dbPath2 = getDatabasePath2();
-      const templatePath = getTemplateDatabasePath();
-      const dbDir = path_1.dirname(dbPath2);
-      if (!fs_1.existsSync(dbDir)) {
-        fs_1.mkdirSync(dbDir, { recursive: true });
-      }
-      const exists = fs_1.existsSync(dbPath2);
-      const isEmpty = exists && fs_1.statSync(dbPath2).size === 0;
-      if (!exists || isEmpty) {
-        console.log("Database does not exist or is empty.");
-        console.log("Looking for template:", templatePath);
-        if (!fs_1.existsSync(templatePath)) {
-          throw new Error(`Database template not found:
-${templatePath}`);
-        }
-        fs_1.copyFileSync(templatePath, dbPath2);
-        console.log("Created database from template:", dbPath2);
-      }
-    }
-    async function initializeDatabase() {
-      console.log("Start database initialization...");
-      ensureDatabaseExists();
-      const existingSettings = await prisma_1.prisma.setting.count();
-      if (existingSettings === 0) {
-        await prisma_1.prisma.setting.create({
-          data: {
-            storeName: "Neural Slate SuperMart",
-            storeAddress: "",
-            storePhone: "+91 9876543210",
-            storeEmail: "",
-            invoicePrefix: "INV",
-            taxPercentage: new client_1.Prisma.Decimal(0),
-            currencySymbol: "\u20B9",
-            thermalPaperWidth: "80mm",
-            allowNegativeStock: false
-          }
-        });
-        console.log("Created default settings");
-      }
-      const categories = [
-        "Electronics",
-        "Miscellaneous",
-        "Hardware",
-        "Tiles"
-      ];
-      for (const name of categories) {
-        await prisma_1.prisma.category.upsert({
-          where: { name },
-          update: {},
-          create: { name }
-        });
-      }
-      console.log("Created default categories");
-      console.log("Database initialization finished.");
-    }
+    import_client2 = require("@prisma/client");
+    import_electron7 = require("electron");
+    import_fs4 = __toESM(require("fs"));
+    import_path4 = __toESM(require("path"));
+    init_prisma();
   }
 });
 
 // electron/main.ts
-var import_electron7 = require("electron");
-var import_path4 = __toESM(require("path"));
+var import_electron8 = require("electron");
+var import_path5 = __toESM(require("path"));
 var import_child_process = require("child_process");
-var import_fs4 = __toESM(require("fs"));
+var import_fs5 = __toESM(require("fs"));
 
 // electron/ipc/printer.ipc.ts
 var import_electron3 = require("electron");
@@ -556,13 +618,13 @@ function setupBackupIpc() {
 }
 
 // electron/main.ts
-var isDev = !import_electron7.app.isPackaged;
+var isDev = !import_electron8.app.isPackaged;
 var mainWindow = null;
 var nextServer = null;
 var NEXT_PORT = 3e3;
-import_electron7.app.disableHardwareAcceleration();
-import_electron7.app.commandLine.appendSwitch("disable-gpu");
-import_electron7.app.commandLine.appendSwitch(
+import_electron8.app.disableHardwareAcceleration();
+import_electron8.app.commandLine.appendSwitch("disable-gpu");
+import_electron8.app.commandLine.appendSwitch(
   "js-flags",
   "--max-old-space-size=4096"
 );
@@ -594,11 +656,11 @@ async function startNextServer() {
   if (isDev) {
     return;
   }
-  const serverDir = import_path4.default.join(
+  const serverDir = import_path5.default.join(
     process.resourcesPath,
     "next-app"
   );
-  const serverPath = import_path4.default.join(
+  const serverPath = import_path5.default.join(
     serverDir,
     "server.js"
   );
@@ -610,7 +672,7 @@ async function startNextServer() {
     "Next.js server path:",
     serverPath
   );
-  if (!import_fs4.default.existsSync(serverPath)) {
+  if (!import_fs5.default.existsSync(serverPath)) {
     throw new Error(
       `Next.js standalone server not found:
 ${serverPath}`
@@ -671,7 +733,7 @@ ${serverPath}`
   );
 }
 function createWindow() {
-  mainWindow = new import_electron7.BrowserWindow({
+  mainWindow = new import_electron8.BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 1200,
@@ -679,7 +741,7 @@ function createWindow() {
     autoHideMenuBar: true,
     backgroundColor: "#ffffff",
     webPreferences: {
-      preload: import_path4.default.join(
+      preload: import_path5.default.join(
         __dirname,
         "preload.js"
       ),
@@ -723,24 +785,24 @@ function createWindow() {
     mainWindow = null;
   });
 }
-import_electron7.app.whenReady().then(async () => {
+import_electron8.app.whenReady().then(async () => {
   setupPrinterIpc();
   setupBackupIpc();
-  import_electron7.ipcMain.handle(
+  import_electron8.ipcMain.handle(
     "get-app-path",
     () => {
-      return import_electron7.app.getAppPath();
+      return import_electron8.app.getAppPath();
     }
   );
   process.env.AK_ENV = isDev ? "development" : "production";
   const {
-    initializeDatabase
-  } = await Promise.resolve().then(() => __toESM(require_init_db()));
-  await initializeDatabase();
+    initializeDatabase: initializeDatabase2
+  } = await Promise.resolve().then(() => (init_init_db(), init_db_exports));
+  await initializeDatabase2();
   await startNextServer();
   createWindow();
-  import_electron7.app.on("activate", () => {
-    if (import_electron7.BrowserWindow.getAllWindows().length === 0) {
+  import_electron8.app.on("activate", () => {
+    if (import_electron8.BrowserWindow.getAllWindows().length === 0) {
       createWindow();
     }
   });
@@ -750,7 +812,7 @@ import_electron7.app.whenReady().then(async () => {
     err
   );
 });
-import_electron7.app.on("before-quit", () => {
+import_electron8.app.on("before-quit", () => {
   if (nextServer && !nextServer.killed) {
     console.log(
       "Stopping Next.js server..."
@@ -759,9 +821,9 @@ import_electron7.app.on("before-quit", () => {
     nextServer = null;
   }
 });
-import_electron7.app.on("window-all-closed", () => {
+import_electron8.app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
-    import_electron7.app.quit();
+    import_electron8.app.quit();
   }
 });
 //# sourceMappingURL=main.js.map
