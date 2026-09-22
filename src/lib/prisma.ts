@@ -5,9 +5,12 @@ import fs from 'fs'
 
 import { PrismaClient } from '@prisma/client'
 
+const isProduction =
+  process.env.AK_ENV === 'production' ||
+  process.env.NODE_ENV === 'production'
+
 function getDatabasePath(): string {
-  // DEVELOPMENT
-  if (process.env.NODE_ENV !== 'production') {
+  if (!isProduction) {
     const databaseDir = path.join(
       process.cwd(),
       'database'
@@ -25,7 +28,6 @@ function getDatabasePath(): string {
     )
   }
 
-  // PRODUCTION
   const appData =
     process.env.APPDATA ||
     path.join(
@@ -59,6 +61,7 @@ const databaseUrl =
     : `file:${dbPath}`
 
 console.log('NODE_ENV:', process.env.NODE_ENV)
+console.log('AK_ENV:', process.env.AK_ENV)
 console.log('Using database:', dbPath)
 console.log('Database URL:', databaseUrl)
 
@@ -78,6 +81,6 @@ export const prisma =
     log: ['error'],
   })
 
-if (process.env.NODE_ENV !== 'production') {
+if (!isProduction) {
   globalForPrisma.prisma = prisma
 }

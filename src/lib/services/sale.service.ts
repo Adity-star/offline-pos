@@ -374,6 +374,12 @@ export const saleService = {
           },
         })
 
+      // Transform to include customerName for easier frontend access
+      const transformedSale = {
+        ...sale,
+        customerName: sale.customer?.name || 'Walk-in Customer',
+      }
+
       // 9. Deduct stock & create logs
       for (const { product, quantity } of productsWithItems) {
         const newStock = product.currentStock - quantity
@@ -392,7 +398,7 @@ export const saleService = {
             changedQuantity: -quantity,
             newStock,
             referenceType: 'SALE',
-            referenceId: sale.id,
+            referenceId: transformedSale.id,
             reason: `Sale: ${invoiceNumber}`,
           },
         })

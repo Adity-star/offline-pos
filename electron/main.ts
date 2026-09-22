@@ -278,7 +278,7 @@ app
       }
     )
 
-    process.env.NODE_ENV =
+    process.env.AK_ENV =
       isDev
         ? 'development'
         : 'production'
