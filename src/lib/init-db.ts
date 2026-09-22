@@ -98,7 +98,7 @@ export async function initializeDatabase() {
     await prisma.setting.create({
       data: {
         storeName:
-          'Neural Slate SuperMart',
+          'Jai Hanuman Agency',
 
         storeAddress: '',
 
@@ -125,11 +125,36 @@ export async function initializeDatabase() {
     )
   }
 
+ await prisma.user.upsert({
+    where: {
+      username: 'system',
+    },
+
+    update: {
+      fullName: 'System User',
+      role: 'ADMIN',
+      isActive: true,
+    },
+
+    create: {
+      username: 'system',
+      password: 'offline-system-user',
+      fullName: 'System User',
+      role: 'ADMIN',
+      isActive: true,
+    },
+  })
+
+  console.log(
+    'Ensured default offline system user'
+  )
+
+
   const categories = [
     'Electronics',
     'Miscellaneous',
     'Hardware',
-    'Tiles',
+    "Electrical"
   ]
 
   for (const name of categories) {
