@@ -110,9 +110,43 @@ var require_init_db = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.initializeDatabase = initializeDatabase;
     var client_1 = require("@prisma/client");
+    var electron_1 = require("electron");
+    var fs_1 = require("fs");
+    var path_1 = require("path");
     var prisma_1 = (init_prisma(), __toCommonJS(prisma_exports));
+    function getDatabasePath2() {
+      const appData = process.env.APPDATA || path_1.join(process.env.USERPROFILE || process.cwd(), "AppData", "Roaming");
+      return path_1.join(appData, "ak-software", "shop.db");
+    }
+    function getTemplateDatabasePath() {
+      if (electron_1.app.isPackaged) {
+        return path_1.join(process.resourcesPath, "database", "shop-template.db");
+      }
+      return path_1.join(process.cwd(), "database", "shop-template.db");
+    }
+    function ensureDatabaseExists() {
+      const dbPath2 = getDatabasePath2();
+      const templatePath = getTemplateDatabasePath();
+      const dbDir = path_1.dirname(dbPath2);
+      if (!fs_1.existsSync(dbDir)) {
+        fs_1.mkdirSync(dbDir, { recursive: true });
+      }
+      const exists = fs_1.existsSync(dbPath2);
+      const isEmpty = exists && fs_1.statSync(dbPath2).size === 0;
+      if (!exists || isEmpty) {
+        console.log("Database does not exist or is empty.");
+        console.log("Looking for template:", templatePath);
+        if (!fs_1.existsSync(templatePath)) {
+          throw new Error(`Database template not found:
+${templatePath}`);
+        }
+        fs_1.copyFileSync(templatePath, dbPath2);
+        console.log("Created database from template:", dbPath2);
+      }
+    }
     async function initializeDatabase() {
-      console.log(`Start seeding ...`);
+      console.log("Start database initialization...");
+      ensureDatabaseExists();
       const existingSettings = await prisma_1.prisma.setting.count();
       if (existingSettings === 0) {
         await prisma_1.prisma.setting.create({
@@ -128,7 +162,7 @@ var require_init_db = __commonJS({
             allowNegativeStock: false
           }
         });
-        console.log(`Created default settings`);
+        console.log("Created default settings");
       }
       const categories = [
         "Electronics",
@@ -143,8 +177,8 @@ var require_init_db = __commonJS({
           create: { name }
         });
       }
-      console.log(`Created default categories`);
-      console.log(`Seeding finished.`);
+      console.log("Created default categories");
+      console.log("Database initialization finished.");
     }
   }
 });
