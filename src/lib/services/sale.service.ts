@@ -15,6 +15,10 @@ import {
 export interface CreateSaleInput {
   customerId?: string | null
 
+  customerName?: string | null
+
+  customerMobile?: string | null
+
   userId: string
 
   items: Array<{
@@ -288,6 +292,33 @@ export const saleService = {
         nextNum
       ).padStart(6, '0')}`
 
+      // 7.5 Resolve Customer
+      let effectiveCustomerId = input.customerId || null
+
+      if (!effectiveCustomerId && (input.customerName || input.customerMobile)) {
+        const name = input.customerName?.trim() || 'Walk-in Customer'
+        const mobile = input.customerMobile?.trim() || ''
+
+        let existingCustomer = null
+        if (mobile && mobile !== 'N/A') {
+          existingCustomer = await tx.customer.findFirst({
+            where: { mobile },
+          })
+        }
+
+        if (existingCustomer) {
+          effectiveCustomerId = existingCustomer.id
+        } else {
+          const newCustomer = await tx.customer.create({
+            data: {
+              name,
+              mobile: mobile || 'N/A',
+            },
+          })
+          effectiveCustomerId = newCustomer.id
+        }
+      }
+
       // 8. Create sale
 
       const sale =
@@ -295,9 +326,7 @@ export const saleService = {
           data: {
             invoiceNumber,
 
-            customerId:
-              input.customerId ||
-              null,
+            customerId: effectiveCustomerId,
 
             userId: input.userId,
 

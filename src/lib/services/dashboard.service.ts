@@ -11,9 +11,14 @@ export const dashboardService = {
       todaysSales,
       monthlySales,
       allTimeSales,
+      todaysPurchases,
+      monthlyPurchases,
+      allTimePurchases,
       totalCustomers,
+      totalSuppliers,
       totalProducts,
-      pendingAmount,
+      pendingCustomerAmount,
+      pendingSupplierAmount,
     ] = await Promise.all([
       // Today's revenue
       prisma.sale.aggregate({
@@ -21,7 +26,7 @@ export const dashboardService = {
           isDeleted: false,
           createdAt: { gte: todayStart },
         },
-        _sum: { grandTotal: true, totalProfit: true, labourCost: true },
+        _sum: { grandTotal: true, totalProfit: true, labourCost: true, paidAmount: true },
         _count: { id: true },
       }),
       // Monthly revenue
@@ -30,38 +35,83 @@ export const dashboardService = {
           isDeleted: false,
           createdAt: { gte: monthStart },
         },
-        _sum: { grandTotal: true, totalProfit: true, labourCost: true },
+        _sum: { grandTotal: true, totalProfit: true, labourCost: true, paidAmount: true },
         _count: { id: true },
       }),
-      // All time
+      // All time revenue
       prisma.sale.aggregate({
         where: { isDeleted: false },
-        _sum: { grandTotal: true, totalProfit: true, labourCost: true },
+        _sum: { grandTotal: true, totalProfit: true, labourCost: true, paidAmount: true },
         _count: { id: true },
         _avg: { grandTotal: true },
       }),
+      // Today's purchases
+      prisma.purchase.aggregate({
+        where: {
+          isDeleted: false,
+          createdAt: { gte: todayStart },
+        },
+        _sum: { grandTotal: true, paidAmount: true },
+        _count: { id: true },
+      }),
+      // Monthly purchases
+      prisma.purchase.aggregate({
+        where: {
+          isDeleted: false,
+          createdAt: { gte: monthStart },
+        },
+        _sum: { grandTotal: true, paidAmount: true },
+        _count: { id: true },
+      }),
+      // All time purchases
+      prisma.purchase.aggregate({
+        where: { isDeleted: false },
+        _sum: { grandTotal: true, paidAmount: true },
+        _count: { id: true },
+      }),
       // Total customers
       prisma.customer.count(),
+      // Total suppliers
+      prisma.supplier.count(),
       // Total products sold (sum of quantities)
       prisma.saleItem.aggregate({
         _sum: { quantity: true },
       }),
-      // Total pending
+      // Total pending from customers
       prisma.customer.aggregate({
         _sum: { pendingAmount: true },
       }),
+      // Total pending to suppliers
+      prisma.supplier.aggregate({
+        _sum: { pendingAmount: true },
+      }),
     ])
+
+    const todayCashIn = Number(todaysSales._sum.paidAmount ?? 0)
+    const todayCashOut = Number(todaysPurchases._sum.paidAmount ?? 0)
+
+    const monthlyCashIn = Number(monthlySales._sum.paidAmount ?? 0)
+    const monthlyCashOut = Number(monthlyPurchases._sum.paidAmount ?? 0)
+
+    const totalCashIn = Number(allTimeSales._sum.paidAmount ?? 0)
+    const totalCashOut = Number(allTimePurchases._sum.paidAmount ?? 0)
 
     return {
       todayRevenue: Number(todaysSales._sum.grandTotal ?? 0),
       todaysProfit: Number(todaysSales._sum.totalProfit ?? 0),
       todaysTransactions: todaysSales._count.id,
       todaysLabourCost: Number(todaysSales._sum.labourCost ?? 0),
+      todayCashIn,
+      todayCashOut,
+      todayNetCashFlow: todayCashIn - todayCashOut,
 
       monthlyRevenue: Number(monthlySales._sum.grandTotal ?? 0),
       monthlyProfit: Number(monthlySales._sum.totalProfit ?? 0),
       monthlyTransactions: monthlySales._count.id,
       monthlyLabourCost: Number(monthlySales._sum.labourCost ?? 0),
+      monthlyCashIn,
+      monthlyCashOut,
+      monthlyNetCashFlow: monthlyCashIn - monthlyCashOut,
 
       totalRevenue: Number(allTimeSales._sum.grandTotal ?? 0),
       totalProfit: Number(allTimeSales._sum.totalProfit ?? 0),
@@ -69,9 +119,17 @@ export const dashboardService = {
       totalLabourCost: Number(allTimeSales._sum.labourCost ?? 0),
       avgOrderValue: Number(allTimeSales._avg.grandTotal ?? 0),
 
+      totalPurchases: Number(allTimePurchases._sum.grandTotal ?? 0),
+      totalPurchasesCount: allTimePurchases._count.id,
+      totalCashIn,
+      totalCashOut,
+      netCashFlow: totalCashIn - totalCashOut,
+
       totalCustomers,
+      totalSuppliers,
       totalProductsSold: totalProducts._sum.quantity ?? 0,
-      pendingRecovery: Number(pendingAmount._sum.pendingAmount ?? 0),
+      pendingRecovery: Number(pendingCustomerAmount._sum.pendingAmount ?? 0),
+      supplierPendingDues: Number(pendingSupplierAmount._sum.pendingAmount ?? 0),
     }
   },
 

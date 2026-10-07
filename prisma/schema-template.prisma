@@ -15,6 +15,7 @@ model User {
   role          String         @default("ADMIN")
   isActive      Boolean        @default(true)
   sales         Sale[]
+  purchases     Purchase[]
   inventoryLogs InventoryLog[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
@@ -34,6 +35,7 @@ model Product {
   name          String
   sku           String         @unique
   barcode       String?
+  hsnCode       String?
   categoryId    String
   category      Category       @relation(fields: [categoryId], references: [id])
   unitType      String
@@ -44,12 +46,14 @@ model Product {
   isActive      Boolean        @default(true)
   notes         String?
   saleItems     SaleItem[]
+  purchaseItems PurchaseItem[]
   inventoryLogs InventoryLog[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
   @@index([name])
   @@index([barcode])
+  @@index([hsnCode])
   @@index([categoryId])
 }
 
@@ -187,3 +191,81 @@ model Backup {
   createdAt DateTime @default(now())
 }
 
+model Supplier {
+  id            String            @id @default(cuid())
+  name          String
+  mobile        String
+  email         String?
+  address       String?
+  gstNumber     String?
+  pendingAmount Decimal           @default(0)
+  notes         String?
+  purchases     Purchase[]
+  payments      SupplierPayment[]
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([mobile])
+  @@index([name])
+}
+
+model Purchase {
+  id             String            @id @default(cuid())
+  purchaseNumber String            @unique
+  supplierId     String?
+  supplier       Supplier?         @relation(fields: [supplierId], references: [id])
+  supplierName   String
+  userId         String
+  user           User              @relation(fields: [userId], references: [id])
+  subtotal       Decimal
+  discountAmount Decimal           @default(0)
+  taxAmount      Decimal           @default(0)
+  grandTotal     Decimal
+  paidAmount     Decimal
+  dueAmount      Decimal
+  paymentMode    String            @default("CASH")
+  paymentStatus  String            @default("PAID")
+  invoiceNumber  String?
+  notes          String?
+  isDeleted      Boolean           @default(false)
+  purchaseItems  PurchaseItem[]
+  payments       SupplierPayment[]
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([supplierId])
+  @@index([createdAt])
+  @@index([paymentStatus])
+}
+
+model PurchaseItem {
+  id          String   @id @default(cuid())
+  purchaseId  String
+  purchase    Purchase @relation(fields: [purchaseId], references: [id])
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  productName String
+  sku         String
+  quantity    Int
+  unitCost    Decimal
+  totalCost   Decimal
+  createdAt   DateTime @default(now())
+
+  @@index([purchaseId])
+  @@index([productId])
+}
+
+model SupplierPayment {
+  id          String    @id @default(cuid())
+  purchaseId  String?
+  purchase    Purchase? @relation(fields: [purchaseId], references: [id])
+  supplierId  String
+  supplier    Supplier  @relation(fields: [supplierId], references: [id])
+  amount      Decimal
+  paymentMode String    @default("CASH")
+  notes       String?
+  createdAt   DateTime  @default(now())
+
+  @@index([supplierId])
+  @@index([purchaseId])
+}

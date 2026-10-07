@@ -741,6 +741,7 @@ export function normalizeSaleForPrint(
               name?: string
               sku?: string
               hsn?: string
+              hsnCode?: string
               mrp?: number
               listingPrice?: number
             }
@@ -830,7 +831,9 @@ export function normalizeSaleForPrint(
               ? String(item.hsn)
               : product?.hsn != null
                 ? String(product.hsn)
-                : undefined
+                : product?.hsnCode != null
+                  ? String(product.hsnCode)
+                  : undefined
 
 
           // ================================================================

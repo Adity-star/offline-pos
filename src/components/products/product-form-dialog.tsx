@@ -19,6 +19,7 @@ const productSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   sku: z.string().min(1, 'SKU is required'),
   barcode: z.string().optional(),
+  hsnCode: z.string().optional(),
   categoryId: z.string().min(1, 'Category is required'),
   costPrice: z.coerce.number().min(0, 'Cost price cannot be negative'),
   sellingPrice: z.coerce.number().min(0, 'Selling price cannot be negative'),
@@ -49,16 +50,17 @@ export function ProductFormDialog({
   const isEditing = !!product
 
   const form = useForm<
-  z.input<typeof productSchema>,
-  any,
-  z.output<typeof productSchema>
->({
-  resolver:
-    zodResolver(productSchema),
+    z.input<typeof productSchema>,
+    any,
+    z.output<typeof productSchema>
+  >({
+    resolver:
+      zodResolver(productSchema),
     defaultValues: {
       name: '',
       sku: '',
       barcode: '',
+      hsnCode: '',
       categoryId: '',
       costPrice: 0,
       sellingPrice: 0,
@@ -90,6 +92,7 @@ export function ProductFormDialog({
         name: product.name,
         sku: product.sku,
         barcode: product.barcode || '',
+        hsnCode: product.hsnCode || '',
         categoryId: product.categoryId,
         costPrice: Number(product.costPrice),
         sellingPrice: Number(product.sellingPrice),
@@ -103,6 +106,7 @@ export function ProductFormDialog({
         name: '',
         sku: '',
         barcode: '',
+        hsnCode: '',
         categoryId: '',
         costPrice: 0,
         sellingPrice: 0,
@@ -236,10 +240,15 @@ export function ProductFormDialog({
                 {...form.register('minStockAlert')}
               />
             </div>
-            
+
             <div className="space-y-2 col-span-2">
-              <label className="text-sm font-medium">Barcode (Optional)</label>
-              <Input {...form.register('barcode')} placeholder="Scan or enter barcode" />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">HSN Code</label>
+                  <Input {...form.register('hsnCode')} placeholder="Enter HSN code" />
+                  <p className="text-xs text-muted-foreground">HSN code for GST invoicing</p>
+                </div>
+              </div>
             </div>
           </div>
 

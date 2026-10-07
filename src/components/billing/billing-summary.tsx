@@ -54,8 +54,8 @@ export function BillingSummary({ onCompleteSale, onPrint, isSubmitting, isPrinti
   const isOverpaid = changeAmount > 0
 
   return (
-    <Card className="flex flex-col h-full bg-slate-50/50 dark:bg-slate-900/50 border-l">
-      <CardContent className="p-6 flex flex-col h-full gap-5">
+    <Card className="flex flex-col min-h-full bg-slate-50/50 dark:bg-slate-900/50 border-l rounded-none">
+      <CardContent className="p-5 flex flex-col min-h-full gap-4 justify-between">
 
         {/* Customer Section */}
         <div className="space-y-2">

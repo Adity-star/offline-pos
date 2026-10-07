@@ -163,6 +163,12 @@ export async function POST(request: NextRequest) {
       customerId:
         body.customerId ?? null,
 
+      customerName:
+        body.customerName ?? null,
+
+      customerMobile:
+        body.customerMobile ?? null,
+
       userId,
 
       items: body.items.map(

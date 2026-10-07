@@ -110,6 +110,8 @@ export default function BillingPage() {
 
       const payload = {
         customerId: customer.id ?? null,
+        customerName: customer.name?.trim() || null,
+        customerMobile: customer.mobile?.trim() || null,
         items: items.map((i) => ({
           productId: i.productId,
           quantity: i.quantity,

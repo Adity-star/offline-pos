@@ -80,6 +80,7 @@ export const productService = {
     name: string
     sku: string
     barcode?: string
+    hsnCode?: string
     categoryId: string
     unitType: string
     costPrice: number
@@ -99,6 +100,7 @@ export const productService = {
         name: data.name,
         sku: data.sku,
         barcode: data.barcode || null,
+        hsnCode: data.hsnCode || null,
         categoryId: data.categoryId,
         unitType: data.unitType,
         costPrice: new Prisma.Decimal(data.costPrice),
@@ -115,6 +117,7 @@ export const productService = {
     name: string
     sku: string
     barcode: string | null
+    hsnCode: string | null
     categoryId: string
     unitType: string
     costPrice: number
@@ -136,6 +139,7 @@ export const productService = {
     if (data.name !== undefined) updateData.name = data.name
     if (data.sku !== undefined) updateData.sku = data.sku
     if (data.barcode !== undefined) updateData.barcode = data.barcode
+    if (data.hsnCode !== undefined) updateData.hsnCode = data.hsnCode
     if (data.categoryId !== undefined) updateData.category = { connect: { id: data.categoryId } }
     if (data.unitType !== undefined) updateData.unitType = data.unitType
     if (data.costPrice !== undefined) updateData.costPrice = new Prisma.Decimal(data.costPrice)
@@ -197,6 +201,7 @@ export const productService = {
     name: string
     sku: string
     barcode?: string
+    hsnCode?: string
     categoryId: string
     unitType: string
     costPrice: number
