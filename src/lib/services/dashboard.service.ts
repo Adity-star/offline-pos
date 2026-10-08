@@ -136,18 +136,19 @@ export const dashboardService = {
   async getDailySales(days = 30) {
     const startDate = new Date()
     startDate.setDate(startDate.getDate() - days)
+    const startMs = startDate.getTime()
 
     const sales = await prisma.$queryRaw<
-      Array<{ date: string; revenue: number; profit: number; count: number }>
+      Array<{ date: string; revenue: number; profit: number; count: bigint | number }>
     >`
       SELECT
-        DATE(createdAt) as date,
+        DATE(createdAt / 1000, 'unixepoch') as date,
         SUM(CAST(grandTotal AS REAL)) as revenue,
         SUM(CAST(totalProfit AS REAL)) as profit,
         COUNT(*) as count
       FROM Sale
-      WHERE isDeleted = 0 AND createdAt >= ${startDate.toISOString()}
-      GROUP BY DATE(createdAt)
+      WHERE isDeleted = 0 AND createdAt >= ${startMs}
+      GROUP BY DATE(createdAt / 1000, 'unixepoch')
       ORDER BY date ASC
     `
 
@@ -185,18 +186,19 @@ export const dashboardService = {
   async getMonthlySales(months = 12) {
     const startDate = new Date()
     startDate.setMonth(startDate.getMonth() - months)
+    const startMs = startDate.getTime()
 
     const sales = await prisma.$queryRaw<
-      Array<{ month: string; revenue: number; profit: number; count: number }>
+      Array<{ month: string; revenue: number; profit: number; count: bigint | number }>
     >`
       SELECT
-        strftime('%Y-%m', createdAt) as month,
+        strftime('%Y-%m', createdAt / 1000, 'unixepoch') as month,
         SUM(CAST(grandTotal AS REAL)) as revenue,
         SUM(CAST(totalProfit AS REAL)) as profit,
         COUNT(*) as count
       FROM Sale
-      WHERE isDeleted = 0 AND createdAt >= ${startDate.toISOString()}
-      GROUP BY strftime('%Y-%m', createdAt)
+      WHERE isDeleted = 0 AND createdAt >= ${startMs}
+      GROUP BY strftime('%Y-%m', createdAt / 1000, 'unixepoch')
       ORDER BY month ASC
     `
 

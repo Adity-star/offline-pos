@@ -57,13 +57,29 @@ export default function DashboardPage() {
   useEffect(() => {
     fetch('/api/dashboard')
       .then(res => res.json())
-      .then(d => setData(d))
-      .catch(e => console.error(e))
+      .then(d => {
+        if (d.error) {
+          console.error('Dashboard error:', d.error)
+          setData({ error: d.error })
+        } else {
+          setData(d)
+        }
+      })
+      .catch(e => {
+        console.error('Dashboard fetch error:', e)
+        setData({ error: 'Failed to fetch dashboard data' })
+      })
       .finally(() => setLoading(false))
   }, [])
 
   if (loading) return <PageLoading />
-  if (!data) return <div className="p-6 text-destructive">Failed to load dashboard data</div>
+  if (!data || data.error || !data.stats) {
+    return (
+      <div className="p-6 text-destructive font-medium">
+        {data?.error || 'Failed to load dashboard data. Please try refreshing.'}
+      </div>
+    )
+  }
 
   const { stats, dailySales = [], monthlySales = [], topProducts = [] } = data
 
