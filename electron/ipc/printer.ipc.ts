@@ -17,7 +17,7 @@ export function setupPrinterIpc() {
   })
 
   const a4Printer = new A4Printer()
-  
+
   // A4 Invoice Printing
   ipcMain.handle('print:a4', async (event, payload: { html: string }) => {
     try {

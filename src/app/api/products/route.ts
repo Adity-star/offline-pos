@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { productService } from '@/lib/services/product.service'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     const params = request.nextUrl.searchParams
     const result = await productService.list({
-      search: params.get('search') || undefined,
+      search: params.get('search') || params.get('q') || undefined,
       categoryId: params.get('categoryId') || undefined,
       page: Number(params.get('page')) || 1,
       limit: Number(params.get('limit')) || 20,

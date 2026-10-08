@@ -156,14 +156,14 @@ export default function SaleDetailPage() {
   const statusColor = sale.paymentStatus === 'PAID'
     ? 'bg-emerald-100 text-emerald-700'
     : sale.paymentStatus === 'PARTIAL'
-    ? 'bg-amber-100 text-amber-700'
-    : 'bg-destructive/10 text-destructive'
+      ? 'bg-amber-100 text-amber-700'
+      : 'bg-destructive/10 text-destructive'
 
   const StatusIcon = sale.paymentStatus === 'PAID'
     ? CheckCircle2
     : sale.paymentStatus === 'PARTIAL'
-    ? Clock
-    : AlertCircle
+      ? Clock
+      : AlertCircle
 
   const canRecordPayment = sale.paymentStatus !== 'PAID' && sale.customerId && dueAmount > 0
 

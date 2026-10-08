@@ -30,10 +30,21 @@ export function ProductSearch() {
     const fetchProducts = async () => {
       setLoading(true)
       try {
-        const res = await fetch(`/api/products/search?q=${encodeURIComponent(debouncedQuery)}&limit=10`)
+        let res = await fetch(`/api/products/search?q=${encodeURIComponent(debouncedQuery)}&limit=10`)
+        if (!res.ok) {
+          // Fallback to /api/products?search= if search route fails
+          res = await fetch(`/api/products?search=${encodeURIComponent(debouncedQuery)}&limit=10`)
+        }
+
+        if (!res.ok) {
+          console.error(`Product search failed with status ${res.status}`)
+          return
+        }
+
         const data = await res.json()
-        if (res.ok) {
-          setResults(data)
+        const productList = Array.isArray(data) ? data : (Array.isArray(data?.products) ? data.products : [])
+        setResults(productList)
+        if (productList.length > 0) {
           setIsOpen(true)
           setSelectedIndex(0)
         }

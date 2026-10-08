@@ -1,7 +1,7 @@
 import { BrowserWindow } from 'electron'
 
 export class A4Printer {
-  constructor() {}
+  constructor() { }
 
   async printInvoice(htmlContent: string): Promise<{ success: boolean; error?: string }> {
     return new Promise((resolve) => {

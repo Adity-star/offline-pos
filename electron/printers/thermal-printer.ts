@@ -1,7 +1,7 @@
 import { BrowserWindow } from 'electron'
 
 export class ThermalPrinter {
-  constructor() {}
+  constructor() { }
 
   async printReceipt(htmlContent: string): Promise<{ success: boolean; error?: string }> {
     return new Promise((resolve) => {
